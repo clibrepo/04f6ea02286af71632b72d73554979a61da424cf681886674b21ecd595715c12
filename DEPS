@@ -3,16 +3,21 @@ vars = {
 
 deps = {
   "external/src/gtest":
-    "http://googletest.googlecode.com/svn/trunk@408",
+    "http://googletest.googlecode.com/svn/trunk",
+
+	"external/src/glog":
+		"http://google-glog.googlecode.com/svn/trunk",
+
+
 
   "external/src/protobuf/src":
-    "http://protobuf.googlecode.com/svn/trunk@327",
+    "http://protobuf.googlecode.com/svn/trunk",
 
   "external/tools/gyp":
-    "http://gyp.googlecode.com/svn/trunk@837",
+    "http://gyp.googlecode.com/svn/trunk",
 
   "external/src/v8":
-    "http://v8.googlecode.com/svn/trunk@5110",
+    "http://v8.googlecode.com/svn/trunk",
 
 	"external/src/boost":
 		"http://svn.boost.org/svn/boost/trunk",
@@ -32,6 +37,30 @@ deps = {
 
 	"external/src/zxing":
 		"http://zxing.googlecode.com/svn/trunk",
+
+	"external/src/libvpx":
+		"git://review.webmproject.org/libvpx.git",
+
+	"external/src/webmdshow":
+		"git://review.webmproject.org/webmdshow.git",
+
+	"external/src/libwebm":
+		"git://review.webmproject.org/libwebm.git",
+
+	"external/src/keyczar":
+		"http://keyczar.googlecode.com/svn/trunk/",
+
+	"external/src/mongo":
+		"http://github.com/mongodb/mongo.git",
+	
+	"external/src/hypertable":
+		"git://scm.hypertable.org/pub/repos/hypertable.git",
+
+	"external/src/webkit":
+		"http://svn.webkit.org/repository/webkit/trunk",
+
+	"external/src/qt4":
+		"git://gitorious.org/qt/qt.git",
 
 
 
