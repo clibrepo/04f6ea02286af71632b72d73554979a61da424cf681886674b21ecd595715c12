@@ -1,0 +1,227 @@
+@node Message Authentication Codes, Keypairs and Key Agreements, Message Digests, Top
+@chapter Message Authentication Codes
+
+@menu
+* The IMac Interface::         The standard MAC interface.
+* The MacFactory Class::       How to obtain MAC implementations.
+* TMMH/16::                    Parameters for the TMMH/16 algorithm.
+* UMAC-32::                    Parameters for the UMAC algorithm.
+* MAC Example::                An example illustrating MAC usage.
+@end menu
+
+A message authentication code, or MAC, is akin to a @emph{keyed hash
+function}, in that it produces a fixed-length identifier for
+variable-length data along with a key. The purpose of a MAC is to
+guarantee the integrity and authenticity of data, as it is
+computationally infesible to fake a MAC without knowledge of the key.
+MAC algorithms in GNU Crypto are in the @code{gnu.crypto.mac} package,
+and include:
+
+@itemize @bullet
+
+@item
+@b{Hash-based MAC}. Hash-based MACs, also called HMACs, use a normal
+message digest algorithm to compute the code based on input data and the
+key. GNU Crypto therefore implements an HMAC for every message digest it
+supports, and the name of a HMAC is usually ``HMAC-'' concatenated with
+the message digest's name; see the previous chapter on message digests
+for further discussion.
+
+@item
+The @b{Truncated Multi-Modular Hash} function, @b{TMMH}. TMMH/16 and
+TMMH/32 are universal hash functions; GNU Crypto implements TMMH/16.
+TMMH/16 has a variety of parameters, which are described later in this
+chapter. TMMH is described in [McG02].
+
+@item
+@b{UHASH-32}. UHASH-32 is a keyed hash function that outputs a hash of 8
+bytes. The key supplied to this MAC must be 16 bytes long. UHASH is
+described in [Kro00].
+
+@item
+@b{UMAC-32}. The UMAC family of algorithms are parameterized, meaning that
+low-level choices such as endianness and the underlying cryptographic
+primitive are not fixed. The UMAC algorithms are described in [Kro00].
+GNU Crypto implements UMAC-32, which performs well on 32- and 64-bit
+architectures, and has a key length of 16 bytes and an output length of
+8 bytes. See the section on UMAC-32 for further discussion.
+
+@end itemize
+
+@node The IMac Interface, The MacFactory Class, Message Authentication Codes, Message Authentication Codes
+@section IMac Interface
+
+@ifnottex
+  @fgindex Message Authentication Code (MAC) class diagram
+  @image{diagrams/mac_class_diag}
+  @center @i{Figure 9: Message Authentication Code (MAC) class diagram}
+@end ifnottex
+
+@cindex @b{MAC_KEY_MATERIAL} variable (@code{IMac})
+
+@deftypevar java.lang.String MAC_KEY_MATERIAL
+A key in the attributes map passed to the @code{init} method. The value
+is taken to be a byte array, which contains the key as raw bytes. The
+length of the key must be at least the length of the computed hash in
+the case of hash-based MACs.
+@end deftypevar
+
+@cindex @b{TRUNCATED_SIZE} variable (@code{IMac})
+
+@deftypevar java.lang.String TRUNCATED_SIZE
+The actual size of the returned hash, taken from the first bytes of the
+raw result. The value must be a @code{java.lang.Integer} containing the
+desired length, which should not be smaller than 80 bits or one half the
+MAC's usual output length, whichever is larger.
+@end deftypevar
+
+@cindex @b{init} function (@code{IMac})
+
+@deftypefun void init (java.util.Map @var{attributes}) throws java.security.InvalidKeyException, java.lang.IllegalStateException
+Initializes this MAC instance with a specified attributes map, which
+maps keys (such as @code{MAC_KEY_MATERIAL}) to parameters (such as the
+key bytes). Throws a @code{java.security.InvalidKeyException} if the key
+is unacceptable or omitted, and trows a
+@code{java.lang.IllegalStateException} if this instance has already been
+initialized.
+@end deftypefun
+
+@iftex
+  @fgindex Message Authentication Code (MAC) class diagram
+  @image{diagrams/mac_class_diag, 426pt, 395pt}
+  @center @i{Figure 9: Message Authentication Code (MAC) class diagram}
+@end iftex
+
+@cindex @b{update} function (@code{IMac})
+
+@deftypefun void update (byte @var{b})
+Continues the computation of the MAC with a single input byte, @var{b}.
+@end deftypefun
+
+@deftypefun void update (byte[] @var{in}, int @var{offset}, int @var{length})
+Continues the computation of the MAC with a portion of the byte array
+@var{in}, starting at @var{offset} and considering @var{length} bytes.
+@end deftypefun
+
+@cindex @b{digest} function (@code{IMac})
+
+@deftypefun byte[] digest ( )
+Finishes the computation of the MAC and returns it in a new byte array.
+The instance is reset after this method returns.
+@end deftypefun
+
+@cindex @b{reset} function (@code{IMac})
+
+@deftypefun void reset ( )
+Resets the internal state of this instance, which may then be
+re-initialized.
+@end deftypefun
+
+@cindex @b{macSize} function (@code{IMac})
+
+@deftypefun int macSize ( )
+Returns the size of the final MAC, in bytes.
+@end deftypefun
+
+@cindex @b{name} function (@code{IMac})
+
+@deftypefun java.lang.String name ( )
+Returns the canonical name of this algorithm.
+@end deftypefun
+
+@cindex @b{clone} function (@code{IMac})
+
+@deftypefun java.lang.Object clone ( )
+Returns a copy of this instance, which may be used the same way as the
+original.
+@end deftypefun
+
+@cindex @b{selfTest} function (@code{IMac})
+
+@deftypefun boolean selfTest ( )
+Performs a simple conformance test on this implementation; returns
+@code{true} if the test is successful, @code{false} if not.
+@end deftypefun
+
+@node The MacFactory Class, TMMH/16, The IMac Interface, Message Authentication Codes
+@section MacFactory Class
+
+@cindex @code{ModeFactory} class
+
+MAC instances are created with the following factory method:
+
+@cindex @b{getInstance} function (@code{MacFactory})
+
+@deftypefun IMac getInstance (java.lang.String @var{name})
+Returns an instance of the MAC algorithm named @var{name}, or
+@code{null} if no such algorithm exists.
+@end deftypefun
+
+Additionally the @code{MacFactory} class defines the following method:
+
+@cindex @b{getNames} function (@code{MacFactory})
+
+@deftypefun java.util.Set getNames ( )
+Returns a @code{java.util.Set} of the names of all available MAC
+algorithms.
+@end deftypefun
+
+@node TMMH/16, UMAC-32, The MacFactory Class, Message Authentication Codes
+@section TMMH/16
+
+In addition to the key, the TMMH/16 requires three more parameters
+passed to its @code{init} method, using the following three keys:
+
+@cindex @b{TAG_LENGTH} variable (@code{TMMH16})
+
+@deftypevar java.lang.String TAG_LENGTH
+The output length, in bytes, represented as a @code{java.lang.Integer}.
+This value must be an even integer between 2 and 64.
+@end deftypevar
+
+@cindex @b{KEYSTREAM} variable (@code{TMMH16})
+
+@deftypevar java.lang.String KEYSTREAM
+An instance of @code{gnu.crypto.prng.IRandom}, which is to serve as the
+source of random bytes for this instance.
+@end deftypevar
+
+@cindex @b{PREFIX} variable (@code{TMMH16})
+
+@deftypevar java.lang.String PREFIX
+A byte array of @code{TAG_LENGTH} bytes. If this parameter is omitted an
+all-zero byte array will be used. This value is XORed with the digest
+just before it is returned.
+@end deftypevar
+
+@node UMAC-32, MAC Example, TMMH/16, Message Authentication Codes
+@section UMAC-32
+
+The UMAC-32 algorithm requires, in addition to the key, a @i{nonce} byte
+array. The byte array must be 1--16 bytes of random data, which is
+passed to the @code{init} method of @code{IMac} in the attributes map.
+@code{UMac32} defined an additional key for this map:
+
+@cindex @b{NONCE_MATERIAL} variable (@code{UMac32}).
+
+@deftypevar java.lang.String NONCE_MATERIAL
+The key for the @i{nonce} material for the attributes map. The value
+mapped must be a byte array of size 1--16 bytes.
+@end deftypevar
+
+@node MAC Example, , UMAC-32, Message Authentication Codes
+@section Example
+
+@cindex MAC example
+
+@example
+IMac mac = MacFactory.getInstance("HMAC-SHA-160");
+HashMap attributes = new HashMap();
+attributes.put(IMac.MAC_KEY_MATERIAL, key_bytes);
+attributes.put(IMac.TRUNCATED_SIZE, new Integer(12));
+mac.init(attributes);
+
+mac.update(input, 0, input.length);
+
+byte[] result = mac.digest();
+@end example

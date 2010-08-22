@@ -1,0 +1,76 @@
+Building GNU Crypto as a shared library
+---------------------------------------
+
+This directory contains the tools needed to build GNU Crypto as a
+native shared library with GCJ, a part of the GNU Compiler
+Collection. It also contains some versions of algorithms optimized for
+use when compiled to native code.
+
+To do this, you will need (at least) GCC 3.1 installed, with support
+for the Java language enabled. Choose a directory to build the library
+in, `BUILDDIR', then do:
+
+   $ mkdir ${BUILDDIR}
+   $ cd ${BUILDDIR}
+
+   $ ${SRCDIR}/gcj/init.sh
+   $ ./configure
+
+   $ make
+   # make install
+
+(`SRCDIR' is the top-level directory that you unpacked from the
+distribution.)
+
+This will install `lib-gnu-crypto.so', and optionally, if you enable
+them, `lib-javax-crypto.so' and `lib-javax.security.so', in addition
+to the Jar files.
+
+The additional targets of the non-GCJ build, `test-vectors', `speed',
+`ent', and `check' can also be run with a native build.   
+
+As with the normal build procedure, the flags you can pass to
+`configure' are:
+
+   --with-jce=[ARG]
+
+      When specified, the clean-room JCE classes (javax.crypto.*) will
+      be built along with the other classes. The default value is
+      `yes', meaning the JCE will be built if you do not explicitly
+      say `no' to this option.
+
+   --with-jce-jar=[PATH]
+
+      Use this to specify an existing Jar file containing the JCE
+      classes (javax.crypto.*). This option is only used if you
+      specify `--with-jce=no'. If you do not specify this option and
+      do not specify `--with-jce=yes', then classes that require JCE
+      classes will not be built.
+
+   --with-sasl=[ARG]
+
+      When specified, the SASL extension classes (javax.security.*)
+      will be built. The default value is `yes', meaning the SASL
+      classes will be built if you do not explicitly say `no' to this
+      option.
+
+   --with-tmpdir=[PATH]
+
+      Specify location to store temporary data. The default is `/tmp'.
+
+
+About the optimized versions.
+-----------------------------
+
+Some virtual machines for the Java platform -- most notably Sun's
+HotSpot VM -- will refuse to compile certain methods with its JIT.
+Most notably, large methods.
+
+As such, if we tried to offer `optimized' versions of some algorithms
+by unrolling the entire body, that method would *never* be compiled by
+the JIT compiler, and would only be run in interpreted mode! This
+means that all the optimizing we do is for naught -- the algorithm
+runs slower than ever.
+
+GCJ-compiled code doesn't suffer from this, of course, so a
+fully-unrolled version makes sense.

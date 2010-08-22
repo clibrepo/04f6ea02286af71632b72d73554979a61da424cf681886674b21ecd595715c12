@@ -1,0 +1,53 @@
+@node Keypairs and Key Agreements, Signatures, Message Authentication Codes, Top
+@chapter Keypairs and Key Agreements
+@cindex @code{gnu.crypto.key} package
+
+@menu
+* Keypairs::                       Keypair generation, encoding and decoding.
+* Key Agreements::                 Key agreement protocols.
+@end menu
+
+This chapter is about keypairs. In the first section, keypair generation
+and keypair encoding and decoding concepts and API are described. The
+second section deals with key agreement protocols.
+
+The code is organised into subpackages, each pertaining to a keypair
+algorithm. Four such algorithms are covered in this version of the
+library. They are:
+
+@itemize @bullet
+@cindex Diffie-Hellman algorithm
+@cindex DH algorithm
+
+@item
+@b{dh}: Diffie-Hellman. The apparent intractability of this algorithm
+forms the basis for the security of many cryptographic schemes.
+
+@cindex Digital Signature Standard (DSS) algorithm
+@cindex Digital Signature Algorithm
+@cindex Digital Signature Standard
+@cindex DSA
+@cindex DSS, algorithm
+
+@item
+@b{dss}: Digital Signature Standard.
+
+@cindex RSA algorithm
+@cindex Rivest, Ron
+@cindex Shamir, Adi
+@cindex Adleman, Leonard
+
+@item
+@b{rsa}: Named after its inventors Ron Rivest, Adi Shamir, and Leonard
+Adleman. Its security is based on the intractibility of the integer
+factorization problem.
+
+@cindex Secure Remote Password algorithm
+@cindex SRP
+@cindex Wu, Thomas J.
+
+@item
+@b{srp6}: As described in Thomas Wu's paper "SRP-6: Improvements and
+Refinements to the Secure Remote Password Protocol," dated October 29,
+2002. [Wu02]
+@end itemize

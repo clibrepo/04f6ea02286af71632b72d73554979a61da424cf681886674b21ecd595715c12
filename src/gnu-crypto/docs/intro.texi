@@ -1,0 +1,72 @@
+@node Introduction, Ciphers, Top, Top
+@chapter Introduction
+@cindex introduction
+@cindex cryptography
+@cindex Classpath
+
+GNU Crypto is a free, high-quality, versatile, and provably correct
+implementation of a wide array of cryptographic primitives and tools
+written in the Java programming language. It provides an application
+programmer's interface (API) to a number of cryptographic algorithms, a
+variety of end-user tools, and a full Java cryptography architecture
+(JCA) provider.
+
+The algorithms implemented by GNU Crypto include symmetric key ciphers
+for protecting data, message digests and message authentication codes
+for proving the integrity of data, digital signature schemes for proving
+the authenticity of data, and algorithms for generating unguessable
+pseudo-random numbers. The API is deliberately designed to be low-level,
+with access to the bare innards of the cryptographic algorithms
+involved, so more complex libraries and programs can be built. 
+
+GNU Crypto does not implement any algorithms that are encumbered by
+patents, and does not rely on any non-free code or documentation. GNU
+Crypto is designed to run in any Java environment that is compatible
+with Sun's Java runtime version 1.2 or later. This includes GNU
+Classpath, a free software implementation of the Java class libraries,
+and free virtual machines such as Kissme, Japhar, Kaffe, and the Jikes
+RVM.
+
+This manual covers the basics for using the GNU Crypto API in new Java
+programs. It describes the public API for all the implemented
+algorithms, describes which algorithms are implemented, and provides
+simple examples of each. The reader is assumed to have some knowledge
+about cryptography and the Java programming language.
+
+This is not a reference about cryptography, the Java programming
+language, or the Java cryptography architecture API. For an introduction
+to cryptography, we recommend the following books:
+
+@itemize @bullet
+
+@cindex Schneier, Bruce
+@cindex @i{Applied Cryptography}
+@item
+Bruce Schneier, @i{Applied Cryptography: Protocols, Algorithms, and
+Source Code in C, Second Edition} [Sch95].
+
+@cindex Menezes, Alfred J.
+@cindex Van Oorschot, Paul C.
+@cindex Vanstone, Scott A.
+@cindex @i{Handbook of Applied Cryptography}
+@item
+Alfred J.@ Menezes, Paul C@. Van Oorschot, and Scott A.@ Vanstone,
+@i{Handbook of Applied Cryptography} [MOV96].
+@end itemize
+
+The JCA API documentation is available on-line from either Sun
+Microsystems (@url{http://java.sun.com/products/jce/doc/apidoc/}) or the
+Legion of the Bouncy Castle
+(@url{http://www.bouncycastle.org/docs/index.html}). There are copious
+references about the Java programming language available (although, as
+far as the author is aware, no free manuals are available at the time of
+writing).
+
+GNU Crypto is always available on the web from
+@url{http://www.gnu.org/software/gnu-crypto/}, via anonymous FTP from
+@url{ftp://ftp.gnupg.org/gcrypt/gnu-crypto/}. The mailing list for bugs,
+help, and discussion is @email{gnu-crypto-discuss@@gnu.org}, and
+additional information about the project is available on Savannah at
+@url{http://savannah.gnu.org/projects/gnu-crypto/}.
+
+``Java'' is a registered trademark of Sun Microsystems.

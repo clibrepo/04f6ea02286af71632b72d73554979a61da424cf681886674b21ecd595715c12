@@ -1,0 +1,12 @@
+Manifest-Version: 1.0
+
+Name: gnu/crypto
+Specification-Title: N/A
+Specification-Version: N/A
+Specification-Vendor: N/A
+Implementation-Title: GNU Crypto Library
+Implementation-Version: @VERSION@
+Implementation-Vendor: Free Software Foundation
+Implementation-Vendor-Id: FSF
+Implementation-URL: http://www.gnu.org/software/gnu-crypto
+

@@ -1,0 +1,162 @@
+@node Padding, Cascades and Assemblies, Modes, Top
+@chapter Padding
+@cindex padding schemes
+@cindex @code{gnu.crypto.pad} package
+
+@menu
+* The IPad Interface::              Standard padding scheme interface.
+* The PadFactory Class::            How to obtain an IPad implementation.
+* Padding Example::             Simple example illustrating padding.
+@end menu
+
+@cindex padding
+
+A padding scheme is merely a standard method of ensuring that the input
+to be encrypted is a multiple of the cipher's block size. The padding
+schemes of GNU Crypto are in package @code{gnu.crypto.pad} and include:
+
+@itemize @bullet
+
+@cindex PKCS #7 padding
+
+@item
+@b{PKCS #7}. PKCS #7 (referred to as ``PKCS7'' in GNU Crypto) pads the
+input @math{P} with the quantity @math{w = b - (|P| \bmod b)}, where
+@math{b} is the cipher's block size, encoded as @math{w} bytes. That is,
+if the input is 5 bytes shorter than the required length, then the input
+is padded with the byte equal to 5 five times. This padding scheme
+supports block sizes of @math{2 \leq b \leq 256} bytes.
+
+@cindex TBC, trailing bit complement padding
+
+@item
+@b{Trailing bit complement}. The ``TBC'' pad appends the complement of
+the last bit in the input until the input is the desired length. That
+is, if the last bit is @code{1}, then the input is padded with @code{0},
+and if the last bit is @code{0}, then the input is padded with @code{1}.
+This padding scheme supports block sizes up to 256 bytes.
+@end itemize
+
+@node The IPad Interface, The PadFactory Class, Padding, Padding
+@section The IPad Interface
+
+@cindex @code{IPad} interface
+
+@fgindex Padding class diagram
+@iftex
+  @image{diagrams/pad_class_diag, 296pt, 199pt}
+  @nobreak
+  @center @i{Figure 3: Padding class diagram}
+@end iftex
+@ifnottex
+  @image{diagrams/pad_class_diag}
+  @center @i{Figure 3: Padding class diagram}
+@end ifnottex
+
+The @code{IPad} interface is used seperately from ciphers and modes. The
+methods defined by padding schemes are:
+
+@cindex @b{init} function (@code{IPad})
+
+@deftypefun void init (int @var{bs}) throws java.lang.IllegalStateException, java.lang.IllegalArgumentException
+Initializes this padding scheme for the specified block size. This
+method throws a @code{java.lang.IllegalStateException} if this instance
+has already been initialized but not reset, and will throw a
+@code{java.lang.IllegalArgumentException} if @var{bs} is not a supported
+block size.
+@end deftypefun
+
+@cindex @b{reset} function (@code{IPad})
+
+@deftypefun void reset ( )
+Resets this instance, which may then be re-initialized later.
+@end deftypefun
+
+@cindex @b{pad} function (@code{IPad})
+
+@deftypefun byte[] pad (byte[] @var{input}, int @var{offset}, int @var{length})
+Examines the bytes in @var{input} as the plaintext, starting at
+@var{offset} and considering @var{length} bytes, and returns the
+appropriate, possibly empty, byte array containing the padding.
+@end deftypefun
+
+@cindex @b{unpad} function (@code{IPad})
+
+@deftypefun int unpad (byte[] @var{input}, int @var{offset}, int @var{length}) throws WrongPaddingException
+Examines the bytes in @var{input} as the plaintext, starting at
+@var{offset} and considering @var{length} bytes, and returns the number
+of bytes that should be trimmed off the end of @var{input} to unpad the
+plaintext. Throws a @code{WrongPaddingException} if the padding bytes to
+not correspond to the bytes expected by this padding scheme.
+@end deftypefun
+
+@cindex @b{name} function (@code{IPad})
+
+@deftypefun java.lang.String name ( )
+Returns the canonical name of this instance.
+@end deftypefun
+
+@cindex @b{selfTest} function (@code{IPad})
+
+@deftypefun boolean selfTest ( )
+Performs a simple conformance test on the padding scheme, to avoid
+implementation or run time errors.
+@end deftypefun
+
+@node The PadFactory Class, Padding Example, The IPad Interface, Padding
+@section The PadFactory Class
+
+@cindex @code{PadFactory} class
+
+Padding instances are created with the following method in the
+@code{PadFactory} class:
+
+@cindex @b{getInstance} function (@code{PadFactory})
+
+@deftypefun {static IPad} getInstance (String @var{pad})
+Gets an instance of the padding scheme with name @var{pad}, or
+@code{null} if no such padding scheme is available.
+@end deftypefun
+
+This class also defines this method:
+
+@cindex @b{getNames} function (@code{PadFactory})
+
+@deftypefun {static java.util.Set} getNames ()
+Returns a set of strings with the names of all padding schemes
+implemented by GNU Crypto.
+@end deftypefun
+
+@node Padding Example, , The PadFactory Class, Padding
+@section Example
+
+@cindex example, padding
+
+The following example pads an input buffer, transforms the padded buffer
+with already-initialized @code{IMode} instances, then unpads the output
+buffer.
+
+@example
+IPad padding = IPad.getInstance("PKCS7");
+padding.init(blockSize);
+byte[] pad = padding.pad(input, 0, input.length);
+byte[] pt = new byte[input.length + pad.length];
+byte[] ct = new byte[pt.length];
+byte[] cpt = new byte[pt.length];
+System.arraycopy(input, 0, pt, 0, input.length);
+System.arraycopy(pad, 0, pt, input.length, pad.length);
+
+for (int i = 0; i + blockSize < pt.length; i += blockSize)
+   @{
+      enc.update(pt, i, ct, i);
+   @}
+
+for (int i = 0; i + blockSize < ct.length; i += blockSize)
+   @{
+      dec.update(ct, i, cpt, i);
+   @}
+
+int unpad = padding.unpad(cpt, 0, cpt.length);
+byte[] output = new byte[cpt.length - unpad];
+System.arraycopy(cpt, 0, output, 0, output.length);
+@end example

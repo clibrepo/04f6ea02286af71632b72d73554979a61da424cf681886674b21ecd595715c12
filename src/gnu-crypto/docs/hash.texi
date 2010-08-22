@@ -1,0 +1,201 @@
+@node Message Digests, Message Authentication Codes, Cascades and Assemblies, Top
+@chapter Message Digests
+
+@menu
+* The IMessageDigest Interface::  The standard message digest interface.
+* The HashFactory Class::         How to obtain message digest impmementations.
+* Message Digest Example::        Simple example of how to hash data.
+@end menu
+
+Message digests, or one-way hash functions, generate fixed-sized
+signatures from variable-sized texts, in such a way that it is
+computationally infeasible to determine the source text from the
+signature or to find a different text that hashes to the same
+signature. Hash functions in GNU Crypto are in the
+@code{gnu.crypto.hash} package, and are:
+
+@itemize @bullet
+
+@cindex Kaliski, Burton
+@cindex Rivest, Ron
+@cindex MD2 hash
+
+@item
+@b{MD2}. MD2 is an early-generation hash function with an 128 bit output
+size, developed by Ron Rivest at RSA Data Security, Inc., and described
+by Burton Kaliski in RFC 1319 [Kal92]. No significant cryptanalysis has
+been published about MD2, but it is still recommended that new
+applications use a different message digest algorithm.
+
+@cindex MD4 hash
+
+@item
+@b{MD4}. MD4 was also developed by Ron Rivest at RSA Data Security, Inc.
+and is described by Rivest in RFC 1320 [Riv92a]. MD4 has a 128 bit
+output size. It is not recommended that MD4 be used in new applications.
+
+@cindex MD5 hash
+
+@item
+@b{MD5}. MD5 is a successor to MD4, developed by Ron Rivest and
+described in RFC 1321 [Riv92b], and has a 128 bit output size. MD5 is
+not widely considered secure any longer, and using other message digests
+with longer output sizes is recommended.
+
+@cindex Dobbertin, Hans
+@cindex Bosselaers, Antoon
+@cindex Preneel, Bart
+@cindex RIPEMD hash
+
+@item
+@b{RIPEMD}. RIPEMD-128 and RIPEMD-160 have 128 bit and 160 bit output
+sizes, and were developed by Hans Dobbertin, Antoon Bosselaers, and Bart
+Preneel as successors to the RIPEMD hash.
+
+@cindex Secure Hash Algorithm
+@cindex National Institute for Standards and Technology (NIST)
+
+@item
+The @b{Secure Hash Algorithm}, @b{SHA-1}. The secure hash algorithm was
+developed by the National Institute for Standards and Technology,
+published in FIPS 180-1. SHA-1 has a 160 bit output length. FIPS 180-2,
+dated August 2002, added the specifications for three additional SHA
+implementations for output sizes of 256-, 384- and 512-bit respectively.
+These three algorithms are referred to as @b{SHA-256}, @b{SHA-384} and
+@b{SHA-512}.
+
+@cindex Tiger hash
+@cindex Anderson, Ross
+@cindex Biham, Eli
+
+@item
+@b{Tiger} is a hash function created by Lars Anderson and Eli Biham,
+optimized for 64-bit architectures. It can produce a 192, 160, or 128
+bit hash. [AnB96]
+
+@cindex Whirlpool hash
+@cindex Barreto, Paulo
+@cindex Rijmen, Vincent
+
+@item
+@b{Whirlpool}. Whirlpool was designed by Paulo S.@ L.@ M.@ Barreto and
+Vincent Rijmen, and has a 512 bit output length.
+
+@end itemize
+
+@iftex
+@page
+@end iftex
+
+@node The IMessageDigest Interface, The HashFactory Class, Message Digests, Message Digests
+@section IMessageDigest Interface
+
+@cindex @code{IMessageDigest} interface
+
+@fgindex Message Digest class diagram
+@iftex
+  @image{diagrams/hash_class_diag, 362pt, 271pt}
+  @nobreak
+  @center @i{Figure 8: Message Digest class diagram}
+@end iftex
+@ifnottex
+  @image{diagrams/hash_class_diag}
+  @center @i{Figure 8: Message Digest class diagram}
+@end ifnottex
+
+@cindex @b{update} function (@code{IMessageDigest})
+
+@deftypefun void update (byte @var{b})
+Updates the hash being computed with a single byte.
+@end deftypefun
+
+@deftypefun void update (byte[] @var{buf}, int @var{offset}, int @var{length})
+Update the hash being computed with @var{length} of the bytes in
+@var{buf} starting at @var{offset}. The programmer should ensure that
+@var{buf} is at least @math{offset + length} bytes long.
+@end deftypefun
+
+@cindex @b{digest} function (@code{IMessageDigest})
+
+@deftypefun byte[] digest ( )
+Finishes the computation of the hash and returns the result as a byte
+array. The input read thusfar may be padded first (depending on the
+algorithm), and the instance is reset.
+@end deftypefun
+
+@cindex @b{name} function (@code{IMessageDigest})
+
+@deftypefun java.lang.String name ( )
+Returns the canonical name of this message digest.
+@end deftypefun
+
+@cindex @b{hashSize} function (@code{IMessageDigest})
+
+@deftypefun int hashSize ( )
+Returns the size of the final hash (the byte array returned by
+@code{digest()}) in bytes.
+@end deftypefun
+
+@cindex @b{blockSize} function (@code{IMessageDigest})
+
+@deftypefun int blockSize ( )
+Returns the algorithm's internal block size, in bytes.
+@end deftypefun
+
+@cindex @b{reset} function (@code{IMessageDigest})
+
+@deftypefun void reset ( )
+Resets the internal state of the hash, making its state equivalent to
+that of a newly-created instance.
+@end deftypefun
+
+@cindex @b{selfTest} function (@code{IMessageDigest})
+
+@deftypefun boolean selfTest ( )
+Performs a simple conformance test of the underlying implementation, to
+guard against implementation or environment errors. Returns @code{true}
+if the test succeeds, @code{false} if it fails.
+@end deftypefun
+
+@cindex @b{clone} function (@code{IMessageDigest})
+
+@deftypefun java.lang.Object clone ( )
+Copies the state of this instance into a new instance, returning the
+copy. This copy can then be used in the same way as the original
+instance.
+@end deftypefun
+
+@node The HashFactory Class, Message Digest Example, The IMessageDigest Interface, Message Digests
+@section HashFactory Class
+
+@cindex @code{HashFactory} class
+
+Message digest instances are created with the static factory method:
+
+@cindex @b{getInstance} function (@code{HashFactory})
+
+@deftypefun IMessageDigest getInstance (java.lang.String @var{name})
+Creates a message digest instance for the algorithm @var{name}, or
+@code{null} if there is no such algorithm.
+@end deftypefun
+
+The @code{HashFactory} class also defines the method:
+
+@cindex @b{getNames} function (@code{HashFactory})
+
+@deftypefun java.util.Set getNames ( )
+Returns a set of the names (strings) of all available message digest
+implementations.
+@end deftypefun
+
+@node Message Digest Example, , The HashFactory Class, Message Digests
+@section Example
+
+@cindex example, message digest
+
+@example
+IMessageDigest md = HashFactory.getInstance("SHA-1");
+md.update(input, 0, input.length);
+
+byte[] digest = md.digest();
+@end example

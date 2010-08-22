@@ -1,0 +1,359 @@
+@node Cascades, Assemblies, Cascades and Assemblies, Cascades and Assemblies
+@section Cascades
+@cindex Direction
+@cindex Stage
+@cindex Cascade
+
+@menu
+* Direction::                      The Direction enumeration class.
+* Stage::                          The Stage abstract class.
+* Cascade::                        The Cascade class.
+* Cascade Example::                DES-EDE as a Cascade of three DES Stages.
+@end menu
+
+@fgindex Cascade class diagram
+@iftex
+  @image{diagrams/cascade_class_diag, 350pt, 130pt}
+  @nobreak
+  @center @i{Figure 4: Cascade class diagram}
+@end iftex
+@ifnottex
+  @image{diagrams/cascade_class_diag}
+  @center @i{Figure 4: Cascade class diagram}
+@end ifnottex
+
+@c --------------------------------------------------------------------
+
+@node Direction, Stage, Cascades, Cascades
+@section Direction
+@cindex @code{gnu.crypto.assembly.Direction} class
+
+An enumeration type for wiring @b{Stage} instances into @b{Cascade}
+chains, as well as for operating a @b{Cascade} in a given direction.
+
+This class cannot be instantiated; but its (only) two possible values
+can be used for constructing @b{Stage} elements, and initializing
+@b{Cascade} instances:
+
+@itemize @bullet
+@item
+@b{FORWARD}: equivalent to @code{gnu.crypto.mode.IMode#ENCRYPTION}; and
+its inverse value
+@item
+@b{REVERSED}: equivalent to @code{gnu.crypto.mode.IMode#DECRYPTION}.
+@end itemize
+
+This class offers a @i{Factory} method to return the inverse of a
+designated @b{Direction} instance:
+
+@cindex @b{reverse} function (@code{Direction})
+@deftypefun Direction reverse (Direction @var{d})
+@end deftypefun
+
+@c --------------------------------------------------------------------
+
+@node Stage, Cascade, Direction, Cascades
+@section Stage
+@cindex @code{gnu.crypto.assembly.Stage} class
+
+This class represents a @b{Stage} in a @b{Cascade} cipher.
+
+Each stage may be either an implementation of a Block Cipher Mode of
+Operation (an instance of @code{gnu.crypto.mode.IMode}) or another
+@b{Cascade} cipher (an instance of @code{Cascade}). Each @b{Stage} has
+also a @i{natural} operational direction when constructed for inclusion
+within a @b{Cascade}. This @i{natural} direction dictates how data
+flows from one @i{Stage} into another when stages are chained together
+in a @b{Cascade}. One can think of a @b{Stage} and its natural
+direction as the specification of how to wire the @b{Stage} into the
+chain.
+
+The following diagrams may help understand the paradigm. The first
+shows two stages chained together, each wired in the same direction
+(@code{Direction#FORWARD}).
+
+@fgindex Stages wired in same direction
+@iftex
+  @image{diagrams/stages_same_dir, 352pt, 162pt}
+  @nobreak
+  @center @i{Figure 5: Stages wired in same direction}
+@end iftex
+@ifnottex
+  @image{diagrams/stages_same_dir}
+  @center @i{Figure 5: Stages wired in same direction}
+@end ifnottex
+
+The second diagram shows two stages, one in a @code{Direction#FORWARD}
+direction, while the other is wired in a @code{Direction#REVERSED}
+direction.
+
+@fgindex Stages wired in different directions
+@iftex
+  @image{diagrams/stages_diff_dir, 352pt, 162pt}
+  @nobreak
+  @center @i{Figure 6: Stages wired in different directions}
+@end iftex
+@ifnottex
+  @image{diagrams/stages_diff_dir}
+  @center @i{Figure 6: Stages wired in different directions}
+@end ifnottex
+
+@cindex @b{DIRECTION} variable (@code{Stage})
+@deftypevar gnu.crypto.assembly.Stage DIRECTION
+A property name in the attributes map that is passed to the @code{init}
+method, representing the stage's desired wiring direction. The mapped
+value should be a valid @code{gnu.crypto.assembly.Direction} value. If
+this attribute is omitted, @code{Direction.FORWARD} is used.
+@end deftypevar
+
+The following @i{Factory} methods, allow instantiation of concrete
+@b{Stage} class instances that adapt instances of either
+@code{gnu.crypto.mode.IMode} or (other) @code{Cascade} classes to
+operate as a @b{Stage} in a @b{Cascade}:
+
+@cindex @b{getInstance} function (@code{Stage})
+@deftypefun Stage getInstance (IMode @var{mode}, Direction @var{forwardDirection})
+Given a designated @var{mode} (an instance of @code{gnu.crypto.mode.IMode},
+and a @b{Direction}, this method returns a @b{Stage} instance that adapts
+this designated @var{mode} to operate as a @b{Stage} in a @b{Cascade}.
+@end deftypefun
+
+@cindex @b{getInstance} function (@code{Stage})
+@deftypefun Stage getInstance (Cascade @var{cascade}, Direction @var{forwardDirection})
+Given a designated @var{cascade} (an instance of @code{gnu.crypto.assembly.Cascade},
+and a @b{Direction}, this method returns a @b{Stage} instance that adapts
+this designated @var{cascade} to operate as a @b{Stage} in another
+@b{Cascade}.
+@end deftypefun
+
+The following instance methods are also available:
+
+@cindex @b{blockSizes} function (@code{Stage})
+@deftypefun java.util.Set blockSizes ()
+Returns the @code{Set} of supported block sizes for this @b{Stage}.
+Each element in the returned @code{Set} is an instance of @code{Integer}.
+@end deftypefun
+
+@cindex @b{init} function (@code{Stage})
+@deftypefun void init (java.util.Map @var{attributes}) throws java.security.InvalidKeyException
+Initializes the stage for operation with specific characteristics.
+Those characteristics are defined in @var{attributes}: a set of name-value
+pairs that describes the desired future behavior of this instance. This
+method throws an @code{IllegalStateException} if the instance is already
+initialized. It throws an @code{java.security.InvalidKeyException} if the
+key data (used to initialize the underlying Mode or Cascade) is invalid.
+@end deftypefun
+
+@cindex @b{currentBlockSize} function (@code{Stage})
+@deftypefun int currentBlockSize () throws IllegalStateException
+Returns the current block size for this stage. Throws an
+@code{IllegalStateException} if the instance is not yet initialized.
+@end deftypefun
+
+@cindex @b{reset} function (@code{Stage})
+@deftypefun void reset ()
+Resets the stage for re-initialization and use with other characteristics.
+This method always succeeds.
+@end deftypefun
+
+@cindex @b{update} function (@code{Stage})
+@deftypefun void update (byte[] @var{in}, int @var{inOffset}, byte[] @var{out}, int @var{outOffset})
+Processes exactly one block of @i{plaintext} (if wired in the
+@code{Direction#FORWARD} direction) or @i{ciphertext} (if wired in the
+@code{Direction#REVERSED} direction), from @var{in} starting at
+@var{inOffset}, and storing the resulting bytes in @var{out}, starting
+at @var{outOffset}. An @code{IllegalStateException} will be thrown if
+the stage has not yet been initialized.
+@end deftypefun
+
+@cindex @b{selfTest} function (@code{Stage})
+@deftypefun boolean selfTest ()
+Conducts a simple @i{correctness} test that consists of basic symmetric
+encryption / decryption test(s) for all supported block and key sizes of
+underlying block cipher(s) wrapped by Mode leafs. The test also includes
+one (1) variable key Known Answer Test (KAT) for each block cipher. It
+returns @code{true} if the tests succeed, and @code{false} otherwise.
+@end deftypefun
+
+@c --------------------------------------------------------------------
+
+@node Cascade, Cascade Example, Stage, Cascades
+@section Cascade
+@cindex @code{gnu.crypto.assembly.Cascade} class
+
+A @b{Cascade} Cipher is the concatenation of two or more block ciphers
+each with independent keys. Plaintext is input to the first stage; the
+output stage @code{i} is input to stage @code{i + 1}; and the output
+of the last stage is the @b{Cascade}'s ciphertext output.
+
+In the simplest case, all stages in a @b{Cascade} have @i{k}-bit keys,
+and the stage inputs and outputs are all n-bit quantities. The stage
+ciphers may differ (general cascade of ciphers), or all be identical
+(cascade of identical ciphers).
+
+The term @i{block ciphers} used above refers to implementations of
+@code{gnu.crypto.mode.IMode}, including the @code{gnu.crypto.mode.ECB}
+mode which basically exposes a symmetric-key block cipher algorithm as
+a @i{Mode} of Operations.
+
+@cindex @b{DIRECTION} variable (@code{Cascade})
+@deftypevar String DIRECTION
+The name of a property in the attributes map that is passed to the
+@code{init} method, representing the cascade's desired wiring direction.
+The mapped value should be a valid @code{gnu.crypto.assembly.Direction}
+value. If this attribute is omitted,
+@code{gnu.crypto.assembly.Direction.FORWARD} is used.
+@end deftypevar
+
+@cindex @b{append} function (@code{Cascade})
+@deftypefun Object append (Stage @var{stage}) throws IllegalArgumentException
+Adds to the end of the current chain, a designated @var{stage}. Returns
+a unique identifier for this added stage, within this cascade. An
+@code{IllegalArgumentException} is thrown if @var{stage} is already in
+the chain, or it has incompatible characteristics with the current
+elements already in the chain. On the other hand, an
+@code{IllegalStateException} will be thrown if the cascade has already
+been initialized, or if the designated @var{stage} is null.
+@end deftypefun
+
+@cindex @b{prepend} function (@code{Cascade})
+@deftypefun Object prepend (Stage @var{stage}) throws IllegalArgumentException
+Adds to the beginning of the current chain, a designated @var{stage}.
+Returns a unique identifier for this added stage, within this cascade.
+An @code{IllegalArgumentException} is thrown if @var{stage} is already
+in the chain, or it has incompatible characteristics with the current
+elements already in the chain. On the other hand, an
+@code{IllegalStateException} will be thrown if the cascade has already
+been initialized, or if the designated @var{stage} is null.
+@end deftypefun
+
+@cindex @b{insert} function (@code{Cascade})
+@deftypefun Object insert (int @var{index}, Stage @var{stage}) throws IllegalArgumentException, IndexOutOfBoundsException
+Inserts a designate @var{stage} @b{Stage} into the current @b{Cascade},
+at the specified @var{index} (zero-based) position. Returns a unique
+identifier for this added stage, within this cascade. Throws an
+@code{IllegalArgumentException} if @var{stage} is already in the chain,
+or it has incompatible characteristics with the current elements
+already in the chain. Throws an @code{IllegalStateException} if the
+instance is already initialized. Finally, this method throws an
+@code{IndexOutOfBoundsException} if @var{index} is less than @code{0}
+or greater than the current size of this cascade.
+@end deftypefun
+
+@cindex @b{size} function (@code{Cascade})
+@deftypefun int size ()
+Returns the current number of stages in this chain.
+@end deftypefun
+
+@cindex @b{stages} function (@code{Cascade})
+@deftypefun java.util.Iterator stages ()
+Returns an @code{java.util.Iterator} over the stages contained in this
+instance. Each element of this iterator is a concrete implementation of
+a @code{gnu.crypto.assembly.Stage}.
+@end deftypefun
+
+@cindex @b{blockSizes} function (@code{Cascade})
+@deftypefun java.util.Set blockSizes ()
+Returns a @code{java.util.Set} of supported block sizes for this
+@b{Cascade} that are common to all of its chained stages. Each element
+in the returned set is an instance of @code{Integer}.
+@end deftypefun
+
+@cindex @b{init} function (@code{Cascade})
+@deftypefun void init (java.util.Map @var{attributes}) throws InvalidKeyException
+Initializes the chain for operation with specific characteristics, as
+specified by the contents of @var{attributes} --a set of name-value
+pairs that describes the desired future behavior of this instance.
+Throws an @code{IllegalStateException} if the chain, or any of its
+stages, is already initialized. Throws an @code{InvalidKeyException} if
+the initialization data provided with the stage is incorrect or causes
+an invalid key to be generated.
+@end deftypefun
+
+@cindex @b{currentBlockSize} function (@code{Cascade})
+@deftypefun int currentBlockSize ()
+Returns the currently set block size for the chain. Throws an
+@code{IllegalStateException} if the instance is not yet initialized.
+@end deftypefun
+
+@cindex @b{reset} function (@code{Cascade})
+@deftypefun void reset ()
+Resets the chain for re-initialization and use with other
+characteristics. This method always succeeds.
+@end deftypefun
+
+@cindex @b{update} function (@code{Cascade})
+@deftypefun void update (byte[] @var{in}, int @var{inOffset}, byte[] @var{out}, int @var{outOffset})
+Processes exactly one block of @i{plaintext} (if initialized in the
+@code{gnu.crypto.assembly.Direction#FORWARD} direction) or @i{ciphertext}
+(if initialised in the @code{gnu.crypto.assembly.Direction#REVERSED}
+direction), from @var{in}, starting at index position @var{inOffset},
+returning the result in @var{out}, starting at index position
+@var{outOffset}. Throws an @code{IllegalStateException} if the instance
+is not yet initialized.
+@end deftypefun
+
+@cindex @b{selfTest} function (@code{Cascade})
+@deftypefun boolean selfTest ()
+Conducts a simple @i{correctness} test that consists of basic symmetric
+encryption / decryption test(s) for all supported block and key sizes
+of underlying block cipher(s) wrapped by Mode leafs. The test also
+includes one (1) variable key Known Answer Test (KAT) for each block
+cipher. Returns @code{true} if the implementation passes the tests.
+Returns @code{false} otherwise.
+@end deftypefun
+
+@c --------------------------------------------------------------------
+
+@node Cascade Example, , Cascade, Cascades
+@section Example
+@cindex example, Cascade
+
+The following example demonstrates how a DES-EDE block cipher can be
+constructed as a Cascade of three DES Stages.
+
+@sp 1
+
+@example
+HashMap map = new HashMap();
+HashMap map1 = new HashMap();
+HashMap map2 = new HashMap();
+HashMap map3 = new HashMap();
+
+Cascade new3DES = new Cascade();
+Object des1 = new3DES.append(
+    Stage.getInstance(
+        ModeFactory.getInstance(Registry.ECB_MODE, new DES(), 8),
+        Direction.FORWARD));
+Object des2 = new3DES.append(
+    Stage.getInstance(
+        ModeFactory.getInstance(Registry.ECB_MODE, new DES(), 8),
+        Direction.REVERSED));
+Object des3 = new3DES.append(
+    Stage.getInstance(
+        ModeFactory.getInstance(Registry.ECB_MODE, new DES(), 8),
+        Direction.FORWARD));
+
+map.put(des1, map1);
+map.put(des2, map2);
+map.put(des3, map3);
+
+map1.put(IBlockCipher.KEY_MATERIAL, key1material);
+map2.put(IBlockCipher.KEY_MATERIAL, key2material);
+map3.put(IBlockCipher.KEY_MATERIAL, key3material);
+
+// encryption
+map.put(Cascade.DIRECTION, Direction.FORWARD);
+byte[] pt = ...; // some plaintext to encrypt
+byte[] ct = new byte[pt.length]; // where ciphertext is returned
+
+try
+  @{
+    new3DES.init(map);
+    new3DES.update(pt, 0, ct, 0);
+  @}
+catch (InvalidKeyException x)
+  @{
+    x.printStackTrace(System.err);
+  @}
+@end example

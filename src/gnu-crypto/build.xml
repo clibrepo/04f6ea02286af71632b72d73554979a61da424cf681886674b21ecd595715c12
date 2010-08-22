@@ -1,0 +1,984 @@
+<?xml version="1.0"?>
+<!--
+   $Id: build.xml,v 1.36 2003/11/11 19:33:41 raif Exp $
+
+   Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
+
+   This file is part of GNU Crypto.
+
+   GNU Crypto is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+
+   GNU Crypto is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; see the file COPYING.  If not, write to the
+
+      Free Software Foundation Inc.,
+      59 Temple Place - Suite 330,
+      Boston, MA 02111-1307
+      USA
+
+   Linking this library statically or dynamically with other modules is
+   making a combined work based on this library.  Thus, the terms and
+   conditions of the GNU General Public License cover the whole
+   combination.
+
+   As a special exception, the copyright holders of this library give
+   you permission to link this library with independent modules to
+   produce an executable, regardless of the license terms of these
+   independent modules, and to copy and distribute the resulting
+   executable under terms of your choice, provided that you also meet,
+   for each linked independent module, the terms and conditions of the
+   license of that module.  An independent module is a module which is
+   not derived from or based on this library.  If you modify this
+   library, you may extend this exception to your version of the
+   library, but you are not obligated to do so.  If you do not wish to
+   do so, delete this exception statement from your version.
+-->
+<project name="gnu-crypto" default="jar" basedir=".">
+   <!--
+   global properties ..........................................................
+   -->
+   <property file=".ant.properties"/>
+   <property file="${user.home}/.ant.properties"/>
+   <property name="mauve.harness" value="gnu.testlet.SimpleTestHarness"/>
+
+   <property name="debug" value="true"/>
+   <property name="optimize" value="false"/>
+
+   <!-- standard directories -->
+   <property name="classes.dir" value="classes"/>
+   <property name="docs.dir" value="docs"/>
+   <property name="etc.dir" value="etc"/>
+   <property name="lib.dir" value="lib"/>
+   <property name="src.dir" value="source"/>
+
+   <!-- toplevel directories -->
+   <property name="jce.src.dir" value="jce"/>
+   <property name="security.src.dir" value="security"/>
+   <property name="gcj.dir" value="gcj"/>
+   <property name="meta.dir" value="meta"/>
+
+   <property name="package.name" value="${package}-${version}"/>
+   <property name="main.jar" value="${lib.dir}/${package}.jar"/>
+   <property name="test.jar" value="${lib.dir}/${package}-test.jar"/>
+   <property name="jce.jar" value="${lib.dir}/javax-crypto.jar"/>
+<!--   <property name="callback.jar" value="${lib.dir}/javax-security-auth-callback.jar"/>-->
+<!--   <property name="sasl.jar" value="${lib.dir}/javax-security-sasl.jar"/>-->
+   <property name="security.jar" value="${lib.dir}/javax-security.jar"/>
+
+   <patternset id="toplevel_files">
+      <include name="AUTHORS"/>
+      <include name="ChangeLog"/>
+      <include name="COPYING"/>
+      <include name="LICENSE"/>
+      <include name="NEWS"/>
+      <include name="README"/>
+      <include name="THANKS"/>
+   </patternset>
+
+   <patternset id="toplevel_dist_files">
+      <patternset refid="toplevel_files"/>
+      <include name=".ant.properties"/>
+      <include name="acinclude.m4"/>
+      <include name="aclocal.m4"/>
+      <include name="autogen.sh"/>
+      <include name="build.xml"/>
+      <include name="config.guess"/>
+      <include name="config.sub"/>
+      <include name="configure"/>
+      <include name="configure.ac"/>
+      <include name="init.sh"/>
+      <include name="INSTALL"/>
+      <include name="install-sh"/>
+      <include name="libtool"/>
+      <include name="libtool.m4"/>
+      <include name="ltcf-c.sh"/>
+      <include name="ltcf-cxx.sh"/>
+      <include name="ltcf-gcj.sh"/>
+      <include name="ltconfig.sh"/>
+      <include name="ltmain.sh"/>
+      <include name="Makefile.am"/>
+      <include name="Makefile.in"/>
+      <include name="missing"/>
+      <include name="mkinstalldirs"/>
+   </patternset>
+
+   <!--
+   default targets ............................................................
+   -->
+   <target name="init" depends="-init,-check-args,-init-jce-jar"
+           description="Setup build environment, and build javax.crypto if required">
+      <available property="jce.jar.present" file="${jce.jar}"/>
+   </target>
+
+   <!-- create necessary directories -->
+   <target name="-init">
+      <tstamp/>
+      <mkdir dir="${classes.dir}"/>
+      <mkdir dir="${lib.dir}"/>
+   </target>
+
+   <!-- parse command line arguments to decide if building javax.crypto is required -->
+   <target name="-check-args">
+      <condition property="error1">
+         <and>
+            <isset property="with.jce"/>
+            <isset property="without.jce"/>
+         </and>
+      </condition>
+      <fail if="error1"
+            message="Both -Dwith.jce=... and -Dwithout.jce=... are set. Not allowed"/>
+
+      <condition property="build.jce.jar">
+         <or>
+            <and>
+               <not>
+                  <isset property="with.jce"/>
+               </not>
+               <not>
+                  <isset property="without.jce"/>
+               </not>
+               <not>
+                  <isset property="with.jce.jar"/>
+               </not>
+            </and>
+            <and>
+               <isset property="with.jce"/>
+               <istrue value="${with.jce}"/>
+            </and>
+            <and>
+               <isset property="without.jce"/>
+               <isfalse value="${without.jce}"/>
+            </and>
+         </or>
+      </condition>
+
+      <condition property="error2">
+         <and>
+            <isset property="build.jce.jar"/>
+            <isset property="with.jce.jar"/>
+         </and>
+      </condition>
+      <fail if="error2"
+            message="Will build a JCE jar; a -Dwith.jce.jar=... is superfluous. Not allowed"/>
+
+      <condition property="error3">
+         <and>
+            <isset property="with.jce.jar"/>
+            <not>
+               <available file="${with.jce.jar}"/>
+            </not>
+         </and>
+      </condition>
+      <fail if="error3"
+            message="Unable to locate the JCE jar indicated with -Dwith.jce.jar=... option"/>
+
+      <condition property="copy.jce.jar">
+         <and>
+            <not>
+               <isset property="build.jce.jar"/>
+            </not>
+            <and>
+               <isset property="with.jce.jar"/>
+               <available file="${with.jce.jar}"/>
+            </and>
+         </and>
+      </condition>
+   </target>
+
+   <!-- copy designated jce.jar to its expected location under lib -->
+   <target name="-init-jce-jar" depends="-build-jce-jar" if="copy.jce.jar">
+      <copy file="${with.jce.jar}" tofile="${jce.jar}"/>
+   </target>
+
+   <target name="-build-jce-jar" if="build.jce.jar">
+      <!-- javax.crypto package -->
+      <echo message="About to compile Java Cryptography Extension (JCE) sources..."/>
+      <javac destdir="${classes.dir}" debug="${debug}" optimize="${optimize}"
+             srcdir="${jce.src.dir}" includes="**/*.java"/>
+      <echo message="About to make a Java Cryptography Extension (JCE) jar..."/>
+      <jar jarfile="${jce.jar}">
+         <fileset dir="${classes.dir}" includes="javax/crypto/**"/>
+         <fileset dir="${classes.dir}" includes="org/bouncycastle/**"/>
+         <fileset dir="${jce.src.dir}">
+            <patternset refid="toplevel_files"/>
+         </fileset>
+      </jar>
+
+      <!-- javax.security.auth.callback package -->
+<!--      <echo message="About to compile javax.security.auth.callback sources..."/>-->
+<!--      <javac destdir="${classes.dir}" debug="${debug}" optimize="${optimize}"-->
+<!--             srcdir="${security.src.dir}"-->
+<!--             includes="javax/security/auth/**/*.java"/>-->
+<!--      <echo message="About to make javax.security.auth.callback jar"/>-->
+<!--      <jar jarfile="${callback.jar}">-->
+<!--         <fileset dir="${classes.dir}" includes="javax/security/auth/**"/>-->
+<!--         <fileset dir="${security.src.dir}">-->
+<!--            <patternset refid="toplevel_files"/>-->
+<!--         </fileset>-->
+<!--      </jar>-->
+
+      <!-- javax.security.sasl package -->
+<!--      <echo message="About to compile javax.security.sasl sources..."/>-->
+<!--      <javac destdir="${classes.dir}" debug="${debug}" optimize="${optimize}"-->
+<!--             srcdir="${security.src.dir}"-->
+<!--             includes="javax/security/sasl/**/*.java"/>-->
+<!--      <echo message="About to make javax.security.sasl jar"/>-->
+<!--      <jar jarfile="${sasl.jar}">-->
+<!--         <fileset dir="${classes.dir}" includes="javax/security/sasl/**"/>-->
+<!--         <fileset dir="${security.src.dir}">-->
+<!--            <patternset refid="toplevel_files"/>-->
+<!--         </fileset>-->
+<!--      </jar>-->
+
+      <!-- combined callback and sasl classes from javax.security -->
+      <echo message="About to compile javax.security sources..."/>
+      <javac destdir="${classes.dir}" debug="${debug}" optimize="${optimize}"
+             srcdir="${security.src.dir}"
+             includes="javax/security/**/*.java"/>
+      <echo message="About to make javax.security jar"/>
+      <jar jarfile="${security.jar}">
+         <fileset dir="${classes.dir}" includes="javax/security/**"/>
+         <fileset dir="${security.src.dir}">
+            <patternset refid="toplevel_files"/>
+         </fileset>
+      </jar>
+   </target>
+
+   <!-- make distribution main jar; incl. non-GCJ-friendly implementations -->
+   <target name="jar" depends="init,compile"
+           description="Build the project's main .jar file">
+      <copy toDir="${etc.dir}">
+         <fileset dir="${etc.dir}" includes="**/*.in"/>
+         <mapper type="glob" from="*.in" to="*"/>
+         <filterset>
+            <filter token="VERSION" value="${version}"/>
+         </filterset>
+      </copy>
+      <jar jarfile="${main.jar}" manifest="${etc.dir}/${package}.mf">
+         <fileset dir="${classes.dir}" includes="gnu/crypto/**"/>
+         <fileset dir="${basedir}">
+            <patternset refid="toplevel_files"/>
+         </fileset>
+      </jar>
+   </target>
+
+   <target name="compile" depends="-compile-with-jce,-compile-without-jce"/>
+
+   <!-- compile everything including the JCE adapters -->
+   <target name="-compile-with-jce" depends="init" if="jce.jar.present">
+      <echo message="About to compile .java sources including JCE specific ones..."/>
+      <javac destdir="${classes.dir}" debug="${debug}" optimize="${optimize}"
+             srcdir="${src.dir}" includes="gnu/crypto/**/*.java">
+         <classpath>
+           <pathelement path="${jce.jar}"/>
+<!--           <pathelement path="${callback.jar}"/>-->
+<!--           <pathelement path="${sasl.jar}"/>-->
+           <pathelement path="${security.jar}"/>
+         </classpath>
+      </javac>
+   </target>
+
+   <!-- exclude the JCE adapters -->
+   <target name="-compile-without-jce" depends="init" unless="jce.jar.present">
+      <echo message="About to compile .java sources excluding JCE specific ones..."/>
+      <javac destdir="${classes.dir}" debug="${debug}" optimize="${optimize}"
+             srcdir="${src.dir}" includes="gnu/crypto/**/*.java">
+         <exclude name="gnu/crypto/jce/cipher/**/*.java"/>
+         <exclude name="gnu/crypto/jce/mac/**/*.java"/>
+      </javac>
+   </target>
+
+   <!--
+   Mauve tests to pass before release .........................................
+   -->
+   <target name="check" depends="jar,jar-test"
+           description="Run Mauve tests to ensure correctness">
+      <!-- run the choose-classes script -->
+      <echo message="Choosing which classes to test..."/>
+      <exec taskname="choose-classes"
+            executable="${basedir}/${src.dir}/choose-classes" dir="${src.dir}"
+            failonerror="true">
+         <arg value="."/>
+         <arg value="${package}"/>
+      </exec>
+      <!-- run the test harness -->
+      <echo message="About to start Mauve tests. Patience..."/>
+      <java taskname="mauve" classname="${mauve.harness}" fork="yes" failonerror="true">
+         <jvmarg value="-Xbootclasspath/p:${jce.jar}"/>
+         <classpath>
+            <pathelement location="${test.jar}"/>
+            <pathelement location="${main.jar}"/>
+<!--            <pathelement path="${callback.jar}"/>-->
+<!--            <pathelement path="${sasl.jar}"/>-->
+            <pathelement path="${security.jar}"/>
+         </classpath>
+         <arg line="${mauve.verbose} ${mauve.debug} -file ${src.dir}/test_classes"/>
+      </java>
+   </target>
+
+   <target name="jar-test" depends="compile-test">
+      <jar jarfile="${test.jar}">
+         <fileset dir="${classes.dir}" includes="gnu/testlet/**"/>
+         <fileset dir="${basedir}">
+            <patternset refid="toplevel_files"/>
+         </fileset>
+      </jar>
+   </target>
+
+   <target name="compile-test" depends="jar,-include-jce-src,-exclude-jce-src"/>
+
+   <target name="-include-jce-src" if="jce.jar.present">
+      <echo message="About to compile .java test sources including JCE specific ones..."/>
+      <antcall target="-generate-java-from-in">
+         <param name="line.prefix" value=""/>
+         <param name="mauve.prefix" value=""/>
+      </antcall>
+      <javac destdir="${classes.dir}" debug="${debug}" optimize="${optimize}">
+         <classpath>
+            <pathelement location="${jce.jar}"/>
+            <pathelement location="${main.jar}"/>
+         </classpath>
+         <src path="${src.dir}"/>
+         <include name="gnu/testlet/**"/>
+      </javac>
+   </target>
+
+   <target name="-exclude-jce-src" unless="jce.jar.present">
+      <echo message="About to compile .java test sources excluding JCE specific ones..."/>
+      <antcall target="-generate-java-from-in">
+         <param name="line.prefix" value="//"/>
+         <param name="mauve.prefix" value="!"/>
+      </antcall>
+      <javac destdir="${classes.dir}" debug="${debug}" optimize="${optimize}">
+         <classpath>
+            <pathelement location="${main.jar}"/>
+         </classpath>
+         <src path="${src.dir}"/>
+         <include name="gnu/testlet/**"/>
+         <exclude name="gnu/testlet/gnu/crypto/jce/TestOfCipher.java"/>
+         <exclude name="gnu/testlet/gnu/crypto/jce/TestOfMac.java"/>
+      </javac>
+   </target>
+
+   <target name="-generate-java-from-in">
+      <copy toDir="${src.dir}">
+         <fileset dir="${src.dir}" includes="**/*.in"/>
+         <mapper type="glob" from="*.in" to="*"/>
+         <filterset>
+            <filter token="INCLUDE_FOR_MAUVE_JCE" value="${mauve.prefix}"/>
+            <filter token="SRCDIR" value="${basedir}"/>
+            <filter token="CHECK_PATH_SEPARATOR" value=":"/>
+            <filter token="CHECK_FILE_SEPARATOR" value="/"/>
+            <filter token="TMPDIR" value="${classes.dir}"/>
+         </filterset>
+      </copy>
+   </target>
+
+   <!--
+   Exercise block cipher and hash algorithms to measure their performance .....
+   -->
+   <target name="speed" depends="jar"
+           description="Exercise hash and block ciphers to measure performance">
+      <java classname="gnu.crypto.tool.CipherSpeed"
+            fork="yes" failonerror="true" classpath="${main.jar}"/>
+      <java classname="gnu.crypto.tool.HashSpeed"
+            fork="yes" failonerror="true" classpath="${main.jar}"/>
+   </target>
+
+   <!--
+   Exercise PRNG algorithms to measure their randomness .......................
+   -->
+   <target name="ent" depends="jar" description="Test randomness of PRNG algorithms">
+      <java classname="gnu.crypto.tool.Ent" fork="yes" failonerror="true"
+            classpath="${main.jar}"/>
+   </target>
+
+   <!--
+   Start the SASL Test Server and Client
+   -->
+   <target name="sasls" depends="jar" description="Start the SASL Test Server">
+      <java taskname="sasls" classname="gnu.crypto.tool.SaslS" fork="yes"
+            failonerror="true">
+         <jvmarg value="-Xbootclasspath/p:${jce.jar}"/>
+         <classpath>
+            <pathelement path="${main.jar}"/>
+<!--            <pathelement path="${callback.jar}"/>-->
+<!--            <pathelement path="${sasl.jar}"/>-->
+            <pathelement path="${security.jar}"/>
+         </classpath>
+         <arg value="30000"/><!-- 30-second timeout -->
+         <arg value="2000"/><!-- port number -->
+      </java>
+   </target>
+
+   <target name="saslc" depends="jar" description="Start the SASL Test Client">
+      <java taskname="saslc" classname="gnu.crypto.tool.SaslC" fork="yes"
+            failonerror="true">
+         <jvmarg value="-Xbootclasspath/p:${jce.jar}"/>
+         <classpath>
+            <pathelement path="${main.jar}"/>
+<!--            <pathelement path="${callback.jar}"/>-->
+<!--            <pathelement path="${sasl.jar}"/>-->
+            <pathelement path="${security.jar}"/>
+         </classpath>
+         <arg value="srp"/><!-- SASL mechanism name -->
+         <arg value="1"/><!-- number of worker threads -->
+         <arg value="2000"/><!-- port number -->
+      </java>
+   </target>
+
+   <target name="sasl" depends="jar" description="Run SaslS and SaslC in parallel">
+      <parallel>
+         <antcall target="sasls"/>
+         <sequential>
+            <sleep seconds="3"/>
+            <antcall target="saslc"/>
+         </sequential>
+      </parallel>
+   </target>
+
+   <!--
+   Test vectors ...............................................................
+   -->
+   <target name="tv" depends="kat,mct,nessie"
+            description="Output NIST and NESSIE compliant test vectors"/>
+   <!--
+   Generating test vectors and exercising algorithms the NESSIE way ...........
+
+   NOTE: To fully generate the tests, including those that take _hours_,
+   invoke the call like so:
+
+      ant -DTORTURE=true nessie
+
+   or any of its sub-tasks.
+   -->
+
+   <target name="nessie" depends="jar"
+           description="Output NESSIE-compliant test vectors">
+      <parallel>
+         <antcall target="ra"/>
+         <antcall target="doum"/>
+         <antcall target="pool"/>
+      </parallel>
+   </target>
+
+   <target name="ra" depends="jar">
+      <mkdir dir="tv/nessie"/>
+      <antcall target="amoun-ra">
+         <param name="keysize" value="128"/>
+      </antcall>
+      <antcall target="amoun-ra">
+         <param name="keysize" value="160"/>
+      </antcall>
+      <antcall target="amoun-ra">
+         <param name="keysize" value="192"/>
+      </antcall>
+      <antcall target="amoun-ra">
+         <param name="keysize" value="224"/>
+      </antcall>
+      <antcall target="amoun-ra">
+         <param name="keysize" value="256"/>
+      </antcall>
+      <antcall target="amoun-ra">
+         <param name="keysize" value="288"/>
+      </antcall>
+      <antcall target="amoun-ra">
+         <param name="keysize" value="320"/>
+      </antcall>
+   </target>
+
+   <target name="amoun-ra">
+      <echo message="Computing test vectors for Anubis (${keysize}-bit key)"/>
+      <java classname="gnu.crypto.tool.NessieCipherTVEmitter" classpath="${main.jar}"
+            output="tv/nessie/anubis-${keysize}-tv.txt" fork="yes" failonerror="true">
+         <arg value="anubis"/>
+         <arg value="${keysize}"/>
+      </java>
+   </target>
+
+   <target name="doum" depends="jar">
+      <echo message="Computing test vectors for Khazad"/>
+      <java classname="gnu.crypto.tool.NessieCipherTVEmitter" classpath="${main.jar}"
+            output="tv/nessie/khazad-tv.txt" fork="yes" failonerror="true">
+         <arg value="khazad"/>
+      </java>
+   </target>
+
+   <target name="pool" depends="jar">
+      <echo message="Computing test vectors for Whirlpool"/>
+      <java classname="gnu.crypto.tool.NessieHashTVEmitter" classpath="${main.jar}"
+            output="tv/nessie/whirlpool-tv.txt" fork="yes" failonerror="true">
+         <arg value="whirlpool"/>
+      </java>
+   </target>
+
+   <!--
+   Generating test vectors and exercising algorithms the NIST way .............
+   -->
+   <target name="kat" depends="jar" description="Output NIST-compliant KAT vectors">
+      <mkdir dir="tv/nist"/>
+      <parallel>
+         <antcall target="nist-kat">
+            <param name="cipher" value="anubis"/>
+            <param name="keysize" value=""/>
+         </antcall>
+         <antcall target="nist-kat">
+            <param name="cipher" value="rijndael"/>
+            <param name="keysize" value=""/>
+         </antcall>
+         <antcall target="nist-kat">
+            <param name="cipher" value="serpent"/>
+            <param name="keysize" value=""/>
+         </antcall>
+         <antcall target="nist-kat">
+            <param name="cipher" value="twofish"/>
+            <param name="keysize" value=""/>
+         </antcall>
+         <!-- KAT can be applied to non NIST ciphers for 128-bit keys only -->
+         <antcall target="nist-kat">
+            <param name="cipher" value="khazad"/>
+            <param name="keysize" value="128"/>
+         </antcall>
+         <antcall target="nist-kat">
+            <param name="cipher" value="square"/>
+            <param name="keysize" value="128"/>
+         </antcall>
+      </parallel>
+   </target>
+
+   <target name="nist-kat">
+      <mkdir dir="tv/nist/${cipher}"/>
+      <echo message="Generating NIST Variable Key KAT vectors for ${cipher}"/>
+      <java classname="gnu.crypto.tool.NistKat" classpath="${main.jar}"
+            fork="yes" failonerror="true" output="tv/nist/${cipher}/ecb_vk.txt">
+         <arg value="-k"/>
+         <arg value="${cipher}"/>
+         <arg value="${keysize}"/>
+      </java>
+      <echo message="Generating NIST Variable Text KAT vectors for ${cipher}"/>
+      <java classname="gnu.crypto.tool.NistKat" classpath="${main.jar}"
+            fork="yes" failonerror="true" output="tv/nist/${cipher}/ecb_vt.txt">
+         <arg value="-t"/>
+         <arg value="${cipher}"/>
+         <arg value="${keysize}"/>
+      </java>
+   </target>
+
+   <target name="mct" depends="jar" description="Output NIST-compliant MCT vectors">
+      <mkdir dir="tv/nessie"/>
+      <parallel>
+         <antcall target="nist-mct">
+            <param name="cipher" value="anubis"/>
+         </antcall>
+         <antcall target="nist-mct">
+            <param name="cipher" value="rijndael"/>
+         </antcall>
+         <antcall target="nist-mct">
+            <param name="cipher" value="serpent"/>
+         </antcall>
+         <antcall target="nist-mct">
+            <param name="cipher" value="twofish"/>
+         </antcall>
+      </parallel>
+   </target>
+
+   <target name="nist-mct">
+      <mkdir dir="tv/nist/${cipher}"/>
+      <echo message="Generating NIST MCT ECB Encryption vectors for ${cipher}"/>
+      <java classname="gnu.crypto.tool.NistMCT" fork="yes" failonerror="true"
+            classpath="${main.jar}" output="tv/nist/${cipher}/ecb_e_m.txt">
+         <arg value="-E"/>
+         <arg value="-e"/>
+         <arg value="${cipher}"/>
+      </java>
+      <echo message="Generating NIST MCT ECB Decryption vectors for ${cipher}"/>
+      <java classname="gnu.crypto.tool.NistMCT" fork="yes" failonerror="true"
+            classpath="${main.jar}" output="tv/nist/${cipher}/ecb_d_m.txt">
+         <arg value="-E"/>
+         <arg value="-d"/>
+         <arg value="${cipher}"/>
+      </java>
+      <echo message="Generating NIST MCT CBC Encryption vectors for ${cipher}"/>
+      <java classname="gnu.crypto.tool.NistMCT" fork="yes" failonerror="true"
+            classpath="${main.jar}" output="tv/nist/${cipher}/cbc_e_m.txt">
+         <arg value="-C"/>
+         <arg value="-e"/>
+         <arg value="${cipher}"/>
+      </java>
+      <echo message="Generating NIST MCT CBC Decryption vectors for ${cipher}"/>
+      <java classname="gnu.crypto.tool.NistMCT" fork="yes" failonerror="true"
+            classpath="${main.jar}" output="tv/nist/${cipher}/cbc_d_m.txt">
+         <arg value="-C"/>
+         <arg value="-d"/>
+         <arg value="${cipher}"/>
+      </java>
+   </target>
+
+   <!--
+   Generating Javadoc API in HTML format ......................................
+   -->
+   <target name="docs" depends="jar,check-jdk,javadoc,javadoc2,gnu-docs"
+           description="Generate programmer's documentation in Javadoc HTML format">
+   </target>
+
+   <target name="check-jdk">
+      <condition property="jdk2">
+         <equals arg1="${ant.java.version}" arg2="1.4"/>
+      </condition>
+   </target>
+
+   <target name="javadoc" unless="jdk2">
+      <mkdir dir="${docs.dir}/api"/>
+      <antcall target="make-docs">
+         <param name="javadoc.opts" value=""/>
+      </antcall>
+   </target>
+
+   <target name="javadoc2" if="jdk2">
+      <mkdir dir="${docs.dir}/api"/>
+      <antcall target="make-docs">
+         <param name="javadoc.opts" value="-breakiterator"/>
+      </antcall>
+   </target>
+
+   <target name="make-docs">
+      <javadoc packagenames="gnu.crypto.*" sourcepath="${src.dir}"
+               destdir="${docs.dir}/api" package="true" version="true"
+               windowtitle="${oneliner}, version ${version}"
+               additionalparam="${javadoc.opts}" use="true"
+               Overview="${src.dir}/overview.html">
+         <doctitle>
+            <![CDATA[<H1>${oneliner}<BR>Programmer's Documentation</H1>]]>
+         </doctitle>
+         <header>
+            <![CDATA[For the latest news and information visit<BR>
+            <A HREF="http://www.gnu.org/software/gnu-crypto">The GNU Crypto
+            project</A>]]>
+         </header>
+         <bottom>
+            <![CDATA[Copyright &copy; 2001, 2002, 2003
+            <A HREF="mailto:gnu-crypto-discuss@gnu.org">Free Software Foundation,
+            Inc.</A> All Rights Reserved.]]>
+         </bottom>
+         <classpath>
+            <pathelement location="${main.jar}"/>
+<!--            <pathelement location="${callback.jar}"/>-->
+<!--            <pathelement location="${sasl.jar}"/>-->
+            <pathelement location="${security.jar}"/>
+         </classpath>
+         <group title="GNU Crypto Algorithms"
+                packages="gnu.crypto.cipher*,gnu.crypto.hash*,gnu.crypto.mac*,
+                     gnu.crypto.mode*,gnu.crypto.pad*,gnu.crypto.prng*"/>
+         <group title="GNU Crypto High-Level API"
+                packages="gnu.crypto.assembly*"/>
+         <group title="GNU Crypto Key Agreements and keypair generation"
+                packages="gnu.crypto.key*"/>
+         <group title="GNU Crypto Signature Schemes with Appendix"
+                packages="gnu.crypto.sig*"/>
+         <group title="GNU Crypto Java Cryptography Extension (JCE) Adapters"
+                packages="gnu.crypto.jce*"/>
+         <group title="GNU Crypto Simple Authentication and Security Layer (SASL)"
+                packages="gnu.crypto.exp.sasl*"/>
+         <group title="GNU Crypto Experimental Algorithms"
+                packages="gnu.crypto.exp.ust*"/>
+         <group title="GNU Crypto Tools"
+                packages="gnu.crypto.tool*"/>
+         <group title="GNU Crypto Utilities"
+                packages="gnu.crypto.util*"/>
+      </javadoc>
+   </target>
+
+   <target name="gnu-docs">
+      <!-- info files -->
+      <exec dir="${docs.dir}" executable="makeinfo" os="GNU/Linux">
+         <arg value="${package}.texi"/>
+      </exec>
+      <!-- html files -->
+      <exec dir="${docs.dir}" executable="makeinfo" os="GNU/Linux">
+         <arg value="--html"/>
+         <arg value="${package}.texi"/>
+         <arg value="-o"/>
+         <arg value="${docs.dir}"/>
+      </exec>
+      <!-- PDF files -->
+      <exec dir="${docs.dir}" executable="texi2dvi" os="GNU/Linux">
+         <arg value="--pdf"/>
+         <arg value="--batch"/>
+         <arg value="${package}.texi"/>
+      </exec>
+      <!-- keyring draft -->
+      <exec dir="${docs.dir}" executable="nroff" os="GNU/Linux"
+            output="${docs.dir}/.draft-marshall-gnu-keyring">
+         <arg value="-ms"/>
+         <arg file="${docs.dir}/draft-marshall-gnu-keyring.nroff"/>
+      </exec>
+      <exec dir="${docs.dir}" executable="perl" os="GNU/Linux"
+            output="${docs.dir}/draft-marshall-gnu-keyring.txt">
+         <arg value="fix.pl"/>
+         <arg file="${docs.dir}/.draft-marshall-gnu-keyring"/>
+      </exec>
+      <delete file="${docs.dir}/.draft-marshall-gnu-keyring"/>
+   </target>
+
+   <target name="make-bouvard">
+      <javadoc packagenames="gnu.crypto,gnu.crypto.cipher*,gnu.crypto.mode*,
+                   gnu.crypto.pad*, gnu.crypto.assembly*,gnu.crypto.hash*,
+                   gnu.crypto.mac*,gnu.crypto.prng*,gnu.crypto.key,
+                   gnu.crypto.key.dh*,gnu.crypto.key.dss*,gnu.crypto.key.dss*,
+                   gnu.crypto.key.rsa*,gnu.crypto.key.srp6*,gnu.crypto.sig,
+                   gnu.crypto.sig.dss*,gnu.crypto.sig.rsa*, gnu.crypto.sasl,
+                   gnu.crypto.sasl.anonymous*,gnu.crypto.sasl.plain*,
+                   gnu.crypto.sasl.crammd5*,gnu.crypto.sasl.srp*,gnu.crypto.jce*,
+                   gnu.crypto.exp*,gnu.crypto.util*,gnu.crypto.tool*"
+                sourcepath="${src.dir}" destdir="${docs.dir}/api" package="true"
+                version="true">
+         <doclet name="bp.doclet.Bouvard"
+                 path="/data/BouvardPecuchet-1.3.1/Bouvard.jar">
+            <param name="-d"             value="${docs.dir}/api"/>
+            <param name="-b_trim"/>
+            <param name="-bs_tabsize"    value="3"/>
+            <param name="-bs_keywords"   value="--0000BB"/>
+            <param name="-bs_comments"   value="--009900"/>
+            <param name="-bs_nliterals"  value="--FF0000"/>
+            <param name="-bs_cliterals"  value="--008888"/>
+            <param name="-bs_operators"  value="--000000"/>
+            <param name="-bs_separators" value="--000000"/>
+         </doclet>
+         <classpath>
+            <pathelement location="${main.jar}"/>
+<!--            <pathelement location="${callback.jar}"/>-->
+<!--            <pathelement location="${sasl.jar}"/>-->
+            <pathelement location="${security.jar}"/>
+         </classpath>
+      </javadoc>
+   </target>
+
+   <target name="make-docbook">
+      <javadoc packagenames="gnu.crypto,gnu.crypto.cipher*,gnu.crypto.mode*,
+                   gnu.crypto.pad*, gnu.crypto.assembly*,gnu.crypto.hash*,
+                   gnu.crypto.mac*,gnu.crypto.prng*,gnu.crypto.key,
+                   gnu.crypto.key.dh*,gnu.crypto.key.dss*,gnu.crypto.key.dss*,
+                   gnu.crypto.key.rsa*,gnu.crypto.key.srp6*,gnu.crypto.sig,
+                   gnu.crypto.sig.dss*,gnu.crypto.sig.rsa*, gnu.crypto.sasl,
+                   gnu.crypto.sasl.anonymous*,gnu.crypto.sasl.plain*,
+                   gnu.crypto.sasl.crammd5*,gnu.crypto.sasl.srp*,gnu.crypto.jce*,
+                   gnu.crypto.exp*,gnu.crypto.util*,gnu.crypto.tool*"
+                sourcepath="${src.dir}" destdir="${docs.dir}/api" package="true"
+                version="true">
+         <doclet name="com.mf.doclet.docbook.DocBookDoclet"
+                 path="/opt/dbdoclet/doclet/lib/dbdoclet.jar">
+            <param name="-properties" value="dbdoclet.properties"/>
+         </doclet>
+         <classpath>
+            <pathelement location="${main.jar}"/>
+<!--            <pathelement location="${callback.jar}"/>-->
+<!--            <pathelement location="${sasl.jar}"/>-->
+            <pathelement location="${security.jar}"/>
+         </classpath>
+      </javadoc>
+   </target>
+
+   <!--
+   Make distribution ..........................................................
+   -->
+   <target name="dist" depends="check,dist-library,dist-tv,-compute-checksum"
+           description="Package the library's Software and generated Test Vectors">
+   </target>
+
+   <target name="dist-library" depends="jar,docs">
+      <property name="build.dir" value="build/${package}-${version}"/>
+      <copy todir="${build.dir}">
+         <fileset dir="${basedir}">
+            <patternset refid="toplevel_dist_files"/>
+         </fileset>
+      </copy>
+      <copy todir="${build.dir}/${docs.dir}">
+         <fileset dir="${docs.dir}"/>
+      </copy>
+      <copy todir="${build.dir}/${etc.dir}">
+         <fileset dir="${etc.dir}">
+            <include name="**/*.in"/>
+         </fileset>
+      </copy>
+      <copy todir="${build.dir}/${lib.dir}" file="${jce.jar}"/>
+      <copy todir="${build.dir}/${lib.dir}" file="${main.jar}"/>
+<!--      <copy todir="${build.dir}/${lib.dir}" file="${callback.jar}"/>-->
+<!--      <copy todir="${build.dir}/${lib.dir}" file="${sasl.jar}"/>-->
+      <copy todir="${build.dir}/${lib.dir}" file="${security.jar}"/>
+      <copy todir="${build.dir}/${lib.dir}" file="${test.jar}"/>
+      <copy todir="${build.dir}/${src.dir}">
+         <fileset dir="${src.dir}">
+            <patternset refid="toplevel_dist_files"/>
+            <include name="choose-classes"/>
+            <include name="mauve-${package}.in"/>
+            <include name="**/*.java"/>
+            <include name="**/*.java.in"/>
+            <exclude name="gnu/testlet/config.java"/>
+         </fileset>
+      </copy>
+      <copy todir="${build.dir}/${gcj.dir}">
+         <fileset dir="${gcj.dir}"/>
+      </copy>
+      <copy todir="${build.dir}/${jce.src.dir}">
+         <fileset dir="${jce.src.dir}"/>
+      </copy>
+      <copy todir="${build.dir}/${meta.dir}">
+         <fileset dir="${meta.dir}"/>
+      </copy>
+      <copy todir="${build.dir}/${security.src.dir}">
+         <fileset dir="${security.src.dir}"/>
+      </copy>
+
+      <property name="deliverable1" value="${package}-${version}"/>
+      <zip basedir="build" zipfile="${deliverable1}.zip"/>
+      <antcall target="-tar-distribution">
+         <param name="filename" value="${deliverable1}.tar.bz2"/>
+         <param name="compression" value="bzip2"/>
+      </antcall>
+      <antcall target="-tar-distribution">
+         <param name="filename" value="${deliverable1}.tar.gz"/>
+         <param name="compression" value="gzip"/>
+      </antcall>
+      <delete dir="build"/>
+   </target>
+
+   <target name="-tar-distribution">
+      <tar longfile="gnu" tarfile="${filename}" compression="${compression}">
+         <tarfileset dir="build" mode="755">
+            <include name="${package}-${version}/init.sh"/>
+            <include name="${package}-${version}/autogen.sh"/>
+            <include name="${package}-${version}/configure"/>
+            <include name="${package}-${version}/config.guess"/>
+            <include name="${package}-${version}/config.sub"/>
+            <include name="${package}-${version}/install-sh"/>
+            <include name="${package}-${version}/missing"/>
+            <include name="${package}-${version}/mkinstalldirs"/>
+            <include name="${package}-${version}/${src.dir}/choose-classes"/>
+            <include name="${package}-${version}/${gcj.dir}/init.sh"/>
+            <include name="${package}-${version}/${gcj.dir}/autogen.sh"/>
+            <include name="${package}-${version}/${gcj.dir}/configure"/>
+            <include name="${package}-${version}/${gcj.dir}/config.guess"/>
+            <include name="${package}-${version}/${gcj.dir}/config.sub"/>
+            <include name="${package}-${version}/${gcj.dir}/depcomp"/>
+            <include name="${package}-${version}/${gcj.dir}/libtool"/>
+            <include name="${package}-${version}/${gcj.dir}/missing"/>
+            <include name="${package}-${version}/${gcj.dir}/mkinstalldirs"/>
+         </tarfileset>
+         <tarfileset dir="build" mode="777">
+            <include name="${package}-${version}/acinclude.m4"/>
+            <include name="${package}-${version}/aclocal.m4"/>
+            <include name="${package}-${version}/${gcj.dir}/acinclude.m4"/>
+            <include name="${package}-${version}/${gcj.dir}/aclocal.m4"/>
+         </tarfileset>
+         <tarfileset dir="build">
+            <include name="${package}-${version}/**"/>
+            <exclude name="${package}-${version}/init.sh"/>
+            <exclude name="${package}-${version}/autogen.sh"/>
+            <exclude name="${package}-${version}/acinclude.m4"/>
+            <exclude name="${package}-${version}/aclocal.m4"/>
+            <exclude name="${package}-${version}/configure"/>
+            <exclude name="${package}-${version}/config.guess"/>
+            <exclude name="${package}-${version}/config.sub"/>
+            <exclude name="${package}-${version}/install-sh"/>
+            <exclude name="${package}-${version}/missing"/>
+            <exclude name="${package}-${version}/mkinstalldirs"/>
+            <exclude name="${package}-${version}/${src.dir}/choose-classes"/>
+            <exclude name="${package}-${version}/${gcj.dir}/init.sh"/>
+            <exclude name="${package}-${version}/${gcj.dir}/autogen.sh"/>
+            <exclude name="${package}-${version}/${gcj.dir}/acinclude.m4"/>
+            <exclude name="${package}-${version}/${gcj.dir}/aclocal.m4"/>
+            <exclude name="${package}-${version}/${gcj.dir}/configure"/>
+            <exclude name="${package}-${version}/${gcj.dir}/config.guess"/>
+            <exclude name="${package}-${version}/${gcj.dir}/config.sub"/>
+            <exclude name="${package}-${version}/${gcj.dir}/depcomp"/>
+            <exclude name="${package}-${version}/${gcj.dir}/libtool"/>
+            <exclude name="${package}-${version}/${gcj.dir}/missing"/>
+            <exclude name="${package}-${version}/${gcj.dir}/mkinstalldirs"/>
+         </tarfileset>
+      </tar>
+   </target>
+
+   <target name="dist-tv" depends="tv">
+      <property name="build.dir" value="build/${package}-${version}"/>
+      <copy todir="${build.dir}">
+         <fileset dir="${basedir}">
+            <patternset refid="toplevel_files"/>
+         </fileset>
+      </copy>
+      <copy todir="${build.dir}/tv">
+         <fileset dir="tv" includes="**/*"/>
+      </copy>
+
+      <property name="deliverable2" value="${package}-${version}-tv"/>
+      <zip basedir="build" zipfile="${deliverable2}.zip"/>
+      <tar longfile="gnu" basedir="build" destfile="${deliverable2}.tar"/>
+      <gzip src="${deliverable2}.tar" zipfile="${deliverable2}.tar.gz"/>
+      <bzip2 src="${deliverable2}.tar" zipfile="${deliverable2}.tar.bz2"/>
+      <delete file="${deliverable2}.tar"/>
+      <delete dir="build"/>
+   </target>
+
+   <target name="-compute-checksum" depends="dist-library,dist-tv">
+      <property name="deliverable1" value="${package}-${version}"/>
+      <property name="deliverable2" value="${package}-${version}-tv"/>
+      <checksum file="${deliverable1}.zip" algorithm="md5"
+                property="zip1.md5"/>
+      <checksum file="${deliverable1}.tar.gz" algorithm="md5"
+                property="tar1.gz.md5"/>
+      <checksum file="${deliverable1}.tar.bz2" algorithm="md5"
+                property="tar1.bz2.md5"/>
+      <checksum file="${deliverable2}.zip" algorithm="md5"
+                property="zip2.md5"/>
+      <checksum file="${deliverable2}.tar.gz" algorithm="md5"
+                property="tar2.gz.md5"/>
+      <checksum file="${deliverable2}.tar.bz2" algorithm="md5"
+                property="tar2.bz2.md5"/>
+      <echo file="${deliverable1}.md5"
+            append="false">${zip1.md5} *${deliverable1}.zip
+${tar1.gz.md5} *${deliverable1}.tar.gz
+${tar1.bz2.md5} *${deliverable1}.tar.bz2
+${zip2.md5} *${deliverable2}.zip
+${tar2.gz.md5} *${deliverable2}.tar.gz
+${tar2.bz2.md5} *${deliverable2}.tar.bz2
+      </echo>
+   </target>
+
+   <!--
+   Cleanup ....................................................................
+   -->
+   <target name="distclean" depends="clean"
+           description="Remove all generated files including deliverables">
+      <delete file="${jce.jar}"/>
+      <delete file="${main.jar}"/>
+<!--      <delete file="${callback.jar}"/>-->
+<!--      <delete file="${sasl.jar}"/>-->
+      <delete file="${security.jar}"/>
+      <delete file="${test.jar}"/>
+      <delete includeemptydirs="true" failonerror="false" >
+         <fileset dir="${docs.dir}/api"/>
+         <fileset dir="${docs.dir}">
+            <include name="${package}.*"/>
+            <include name="*.html"/>
+            <exclude name="${package}.texi"/>
+         </fileset>
+      </delete>
+      <delete file="${etc.dir}/${package}.mf"/>
+   </target>
+
+   <target name="clean"
+           description="Remove object and Mauve-related generated files">
+      <delete dir="${classes.dir}"/>
+      <delete file="${src.dir}/gnu/testlet/config.java"/>
+      <delete file="${src.dir}/mauve-${package}"/>
+      <delete file="${src.dir}/test_classes"/>
+   </target>
+
+</project>

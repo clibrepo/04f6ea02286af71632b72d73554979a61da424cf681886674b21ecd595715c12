@@ -1,0 +1,352 @@
+@node Keypairs, Key Agreements, Keypairs and Key Agreements, Keypairs and Key Agreements
+@section Keypairs
+@cindex Algorithm-Specific Attributes
+@cindex The IKeyPairGenerator Interface
+@cindex The KeyPairGeneratorFactory Class
+@cindex The IKeyPairCodec Interface
+
+@menu
+* Algorithm-Specific Attributes::     Key generation algorithm-specific info.
+* The IKeyPairGenerator Interface::   Generating key pairs.
+* The KeyPairGeneratorFactory Class:: Creating key pair generator instances.
+* The IKeyPairCodec Interface::       Storing key pairs.
+* Keypair Generation Example::        Example of using keypair generators.
+@end menu
+
+The following class diagram shows the most important classes in the library
+that collaborate to implement the keypair generation functionality:
+
+@fgindex Keypair generation class diagram
+@iftex
+  @image{diagrams/kp_class_diag, 372pt, 275pt}
+  @nobreak
+  @center @i{Figure 10: Keypair generation class diagram}
+@end iftex
+@ifnottex
+  @image{diagrams/kp_class_diag}
+  @center @i{Figure 10: Keypair generation class diagram}
+@end ifnottex
+
+The next figure is a sequence diagram showing the entities and messages
+involved in using those classes:
+
+@fgindex Keypair generation sequence diagram
+@iftex
+  @image{diagrams/kp_generation_seq_diag, 277pt, 125pt}
+  @nobreak
+  @center @i{Figure 11: Keypair generation sequence diagram}
+@end iftex
+@ifnottex
+  @image{diagrams/kp_generation_seq_diag}
+  @center @i{Figure 11: Keypair generation sequence diagram}
+@end ifnottex
+
+@c --------------------------------------------------------------------
+
+@node Algorithm-Specific Attributes, The IKeyPairGenerator Interface, Keypairs, Keypairs
+@section Algorithm-Specific Attributes
+
+
+@subsection Diffie-Hellman
+
+Each of these constants are defined in the
+@code{gnu.crypto.key.dh.GnuDHKeyPairGenerator} class.
+
+@cindex @b{SOURCE_OF_RANDOMNESS} variable (@code{GnuDHKeyPairGenerator})
+
+@deftypevar java.lang.String SOURCE_OF_RANDOMNESS
+Property name for the source of random bits to use when generating
+keys. The value mapped by this property must be of type
+@code{gnu.crypto.prng.IRandom} which must have been previously
+initialized. If undefined, then a default PRNG is used.
+@end deftypevar
+
+@cindex @b{DH_PARAMETERS} variable (@code{GnuDHKeyPairGenerator})
+
+@deftypevar java.lang.String DH_PARAMETERS
+Property name for an optional @code{javax.crypto.spec.DHGenParameterSpec}
+instance to use for this generator.
+@end deftypevar
+
+@cindex @b{PRIME_SIZE} variable (@code{GnuDHKeyPairGenerator})
+
+@deftypevar java.lang.String PRIME_SIZE
+Property name of the size in bits (an instance of @code{java.lang.Integer})
+of the public prime @var{p}.
+@end deftypevar
+
+@cindex @b{EXPONENT_SIZE} variable (@code{GnuDHKeyPairGenerator})
+
+@deftypevar java.lang.String EXPONENT_SIZE
+Property name of the size in bits (an instance of @code{java.lang.Integer})
+of the private exponent @var{x}.
+@end deftypevar
+
+
+@subsection DSS
+
+Each of these constants are defined in the
+@code{gnu.crypto.key.dss.DSSKeyPairGenerator} class.
+
+@cindex @b{SOURCE_OF_RANDOMNESS} variable (@code{DSSKeyPairGenerator})
+
+@deftypevar java.lang.String SOURCE_OF_RANDOMNESS
+Property name for the source of random bits to use when generating
+keys. The value mapped by this property must be of type
+@code{gnu.crypto.prng.IRandom} which must have been previously
+initialized. If undefined, then a default PRNG is used.
+@end deftypevar
+
+@cindex @b{DSS_PARAMETERS} variable (@code{DSSKeyPairGenerator})
+
+@deftypevar java.lang.String DSS_PARAMETERS
+Property name of an optional @code{java.security.spec.DSAParameterSpec}
+instance to use for this generator's @var{p}, @var{q}, and @var{g}
+values. The default is to generate these values or use pre-computed ones,
+depending on the value of the @var{USE_DEFAULTS} attribute.
+@end deftypevar
+
+@cindex @b{MODULUS_LENGTH} variable (@code{DSSKeyPairGenerator})
+
+@deftypevar java.lang.String MODULUS_LENGTH
+Property name for the modulus length, in bits. The value mapped by
+this property must be of type @code{java.lang.Integer}.
+@end deftypevar
+
+@cindex @b{USE_DEFAULTS} variable (@code{DSSKeyPairGenerator})
+
+@deftypevar java.lang.String USE_DEFAULTS
+Property name of an instance of @code{java.lang.Boolean} indicating
+wether or not to use pre-computed default values for the algorithm
+parameters. Three sets of such parameters are also provided covering
+512-bit (@var{KEY_PARAMS_512}, 768-bit (@var{KEY_PARAMS_768}) and
+1024-bit (@var{KEY_PARAMS_512}) keylength.
+@end deftypevar
+
+
+@subsection RSA
+
+Each of these constants are defined in the
+@code{gnu.crypto.key.rsa.RSAPSSKeyPairGenerator} class.
+
+@cindex @b{SOURCE_OF_RANDOMNESS} variable (@code{RSAPSSKeyPairGenerator})
+
+@deftypevar java.lang.String SOURCE_OF_RANDOMNESS
+Property name for the source of random bits to use. The value mapped by
+this property must be of type @code{gnu.crypto.prng.IRandom}, which must
+have been previously initialized. If undefined, then a default PRNG is
+used.
+@end deftypevar
+
+@cindex @b{MODULUS_LENGTH} variable (@code{RSAPSSKeyPairGenerator})
+
+@deftypevar java.lang.String MODULUS_LENGTH
+Property name for the length, in bits, of the modulus. The value mapped
+by this property must be of type @code{java.lang.Integer}.
+@end deftypevar
+
+@cindex @b{RSA_PARAMETERS} variable (@code{RSAPSSKeyPairGenerator})
+
+@deftypevar java.lang.String RSA_PARAMETERS
+Property name for the optional values of @var{e} and @var{n}. The value
+mapped by this property must be of type
+@code{java.security.spec.RSAKeyGenParameterSpec} Random or default
+values will be used instead if this parameter is not specified.
+@end deftypevar
+
+
+@subsection SRP6
+
+Each of these constants are defined in the
+@code{gnu.crypto.key.srp6.SRPKeyPairGenerator} class.
+
+@cindex @b{SOURCE_OF_RANDOMNESS} variable (@code{SRPKeyPairGenerator})
+
+@deftypevar java.lang.String SOURCE_OF_RANDOMNESS
+Property name for the source of random bits to use. The value mapped by
+this property must be of type @code{gnu.crypto.prng.IRandom}, which must
+have been previously initialized. If undefined, then a default PRNG is
+used.
+@end deftypevar
+
+@cindex @b{MODULUS_LENGTH} variable (@code{SRPKeyPairGenerator})
+
+@deftypevar java.lang.String MODULUS_LENGTH
+Property name of the length (an instance of @code{java.lang.Integer})
+of the modulus @var{N} of an SRP key.
+@end deftypevar
+
+@cindex @b{SHARED_MODULUS} variable (@code{SRPKeyPairGenerator})
+
+@deftypevar java.lang.String SHARED_MODULUS
+Property name of the value of the modulus @var{N} of an SRP key. The
+value mapped by this property, if/when defined, must be of type
+@code{java.math.BigInteger}. It is an optional parameter. If
+undefined, then a new value is generated, unless @var{USE_DEFAULTS}
+is set to TRUE.
+@end deftypevar
+
+@cindex @b{GENERATOR} variable (@code{SRPKeyPairGenerator})
+
+@deftypevar java.lang.String GENERATOR
+Property name of the value of the generator @var{g} of an SRP key. The
+value mapped by this property, if/when defined, must be of type
+@code{java.math.BigInteger}. It is an optional parameter. If
+undefined, then a new value is generated, unless @var{USE_DEFAULTS}
+is set to TRUE.
+@end deftypevar
+
+@cindex @b{USE_DEFAULTS} variable (@code{SRPKeyPairGenerator})
+
+@deftypevar java.lang.String USE_DEFAULTS
+Property name of an instance of @code{java.lang.Boolean} indicating
+wether or not to use pre-computed default values for the algorithm
+parameters. Seven sets of such parameters are also provided covering
+512-bit (@var{N_512}, 640-bit (@var{N_640}), 768-bit (@var{N_768}),
+1024-bit (@var{N_1024}), 1280-bit (@var{N_1280}), 1536-bit (@var{N_1536})
+and 2048-bit (@var{N_2048}) shared modulus length.
+@end deftypevar
+
+@c --------------------------------------------------------------------
+
+@node The IKeyPairGenerator Interface, The KeyPairGeneratorFactory Class, Algorithm-Specific Attributes, Keypairs
+@section The IKeyPairGenerator Interface
+@cindex @code{gnu.crypto.key.IKeyPairGenerator} class
+
+All signature algorithms in GNU Crypto have their corresponding key
+pair generators, which implement this interface and provide
+the following methods:
+
+@cindex @b{setup} function (@code{IKeyPairFactory})
+
+@deftypefun void setup (java.util.Map @var{attributes}) throws java.lang.IllegalArgumentException
+Initializes this key pair generator with the given attrubutes. The
+property names used are algorithm-dependent, and are described in the
+next section. This method throws a
+@code{java.lang.IllegalArgumentException} if the given attributes are
+incorrect or incomplete.
+@end deftypefun
+
+@cindex @b{generate} function (@code{IKeyPairFactory})
+
+@deftypefun java.security.KeyPair generate ()
+Generates and returns a new key pair based on the attributes used
+to configure this instance.
+@end deftypefun
+
+@cindex @b{name} function (@code{IKeyPairFactory})
+
+@deftypefun java.lang.String name ()
+Returns the canonical name of the algorithm this class generates key
+pairs for.
+@end deftypefun
+
+@c --------------------------------------------------------------------
+
+@node The KeyPairGeneratorFactory Class, The IKeyPairCodec Interface, The IKeyPairGenerator Interface, Keypairs
+@section The KeyPairGeneratorFactory Class
+@cindex @code{gnu.crypto.key.KeyPairGeneratorFactory} class
+
+@deftypefun IKeyPairGenerator getInstance (java.lang.String @var{algorithm})
+Returns an instance of a key pair generator for @var{algorithm}, or
+@code{null} if no such generator is available.
+@end deftypefun
+
+@deftypefun java.util.Set getNames ()
+Returns an unmodifiable set of all available key pair generator
+algorithms, each entry a @code{java.lang.String}.
+@end deftypefun
+
+@c --------------------------------------------------------------------
+
+@node The IKeyPairCodec Interface, Keypair Generation Example, The KeyPairGeneratorFactory Class, Keypairs
+@section The IKeyPairCodec Interface
+@cindex @code{gnu.crypto.key.IKeyPairCodec} class
+
+A key pair codec is used to externalize and de-externalize the key pairs
+used in GNU Crypto. There is no factory class, but rather the
+implementations have public, zero-argument constructors. The available
+codecs are:
+
+@itemize @bullet
+@item
+@code{gnu.crypto.key.dh.DHKeyPairRawCodec}, for encoding and decoding
+Diffie-Hellman key pairs.
+
+@item
+@code{gnu.crypto.key.dss.DSSKeyPairRawCodec}, for encoding and decoding
+DSS key pairs.
+
+@item
+@code{gnu.crypto.key.rsa.RSAKeyPairRawCodec}, for encoding and decoding
+RSA key pairs.
+
+@item
+@code{gnu.crypto.key.srp6.SRPKeyPairRawCodec}, for encoding and decoding
+SRP key pairs.
+@end itemize
+
+
+@deftypevar int RAW_FORMAT
+Constant identifying the ``raw'' format used by GNU Crypto.
+@end deftypevar
+
+@deftypefun java.security.PrivateKey decodePrivateKey (byte[] @var{encoded})
+Decodes a private key from its external representation, returning it
+as an appropriate instance of @code{java.security.PrivateKey}. This
+function will throw a @code{java.lang.IllegalArgumentException} if the
+encoded bytes cannot be decoded or are incorrect.
+@end deftypefun
+
+@deftypefun java.security.PublicKey decodePublicKey (byte[] @var{encoded})
+Decodes a public key from its external representation, returning it
+as an appropriate instance of @code{java.security.PublicKey}. This
+function will throw a @code{java.lang.IllegalArgumentException} if the
+encoded bytes cannot be decoded or are incorrect.
+@end deftypefun
+
+@deftypefun byte[] encodePrivateKey (java.security.PrivateKey @var{key})
+Encodes a private key to its external representation, returning the
+encoded bytes. This function will throw a
+@code{java.lang.IllegalArgumentException} if the key cannot be encoded
+by this instance.
+@end deftypefun
+
+@deftypefun byte[] encodePublicKey (java.security.PublicKey @var{key})
+Encodes a public key to its external representation, returning the
+encoded bytes. This function will throw a
+@code{java.lang.IllegalArgumentException} if the key cannot be encoded
+by this instance.
+@end deftypefun
+
+@deftypefun int getFormatID ()
+Returns the format identifier of this codec, such as @code{RAW_FORMAT}.
+@end deftypefun
+
+@c --------------------------------------------------------------------
+
+@node Keypair Generation Example, , The IKeyPairCodec Interface, Keypairs
+@section Example
+@cindex example, Keypair Generation
+
+The following example demonstrates how to generate a DSS keypair.
+
+@sp 1
+
+@example
+IKeyPairGenerator kpg = KeyPairGeneratorFactory.getInstance(Registry.DSS_KPG);
+HashMap map = new HashMap();
+map.put(DSSKeyPairGenerator.MODULUS_LENGTH, new Integer(512));
+map.put(DSSKeyPairGenerator.USE_DEFAULTS, new Boolean(false));
+kpg.setup(map);
+KeyPair kp = kpg.generate();
+
+BigInteger p1 = ((DSAPublicKey) kp.getPublic()).getParams().getP();
+BigInteger p2 = ((DSAPrivateKey) kp.getPrivate()).getParams().getP();
+
+BigInteger q1 = ((DSAPublicKey) kp.getPublic()).getParams().getQ();
+BigInteger q2 = ((DSAPrivateKey) kp.getPrivate()).getParams().getQ();
+
+BigInteger g1 = ((DSAPublicKey) kp.getPublic()).getParams().getG();
+BigInteger g2 = ((DSAPrivateKey) kp.getPrivate()).getParams().getG();
+@end example

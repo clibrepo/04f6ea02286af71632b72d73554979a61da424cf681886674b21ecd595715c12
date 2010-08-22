@@ -1,0 +1,236 @@
+@node Random Numbers, JCE Support, Signatures, Top
+@chapter Random Numbers
+
+@cindex Random Numbers
+@cindex @code{gnu.crypto.prng} package
+
+@menu
+* The IRandom Interface::       The standard PRNG interface.
+* The PRNGFactory Class::       How to create an IRandom instance.
+* ARCFour::                     Extra properties in the ARCFOUR PRNG.
+* MDGenerator::                 Extra properties in the hash-based
+                                PRNG.
+* ICMGenerator::                Extra properties in the ICM PRNG.
+* UMacGenerator::               Extra properties in the UMac PRNG.
+* PRNG Example::                Programming example.
+@end menu
+
+The pseudo-random number generator (PRNG) classes of GNU Crypto are
+used to generate streams of cryptographically secure pseudo-random
+bytes.
+
+@itemize @bullet
+
+@cindex Arcfour PRNG
+@cindex RC4
+@item
+@b{ARCFOUR} is an implementation of the ARCFOUR stream cipher's
+keystream generator. ARCFOUR is the name of a stream cipher that is
+believed to be compatible with RSA Data Security, Inc.'s RC4 stream
+cipher, and is a decendent of an algorithm that was posted anonymously
+to a mailing list in 1994.
+
+@cindex ICM PRNG
+@item
+@b{ICM}, or the Integer Counter Mode PRNG, is an algorithm that
+creates a PRNG around a block cipher. The default cipher used in this
+implementation is Rijndael, the AES. ICM is described in [McG01].
+
+@cindex hash-based PRNG
+@item
+@b{MD}, or PRNGs based around a cryptographic hash function.
+
+@cindex UMAC-KDF
+@item
+@b{UMAC-KDF} is a PRNG based on the UMAC key derivation function.
+@end itemize
+
+@fgindex PRNG class diagram
+@iftex
+  @image{diagrams/prng_class_diag, 317pt, 177pt}
+  @center @i{Figure 16: PRNG class diagram}
+@end iftex
+@ifnottex
+  @image{diagrams/prng_class_diag}
+  @center @i{Figure 16: PRNG class diagram}
+@end ifnottex
+
+@c -----------------------------------------------------------------
+
+@node The IRandom Interface, The PRNGFactory Class, , Random Numbers
+@section The IRandom Interface
+
+@deftypefun void init (java.util.Map @var{attributes})
+Initializes this PRNG, preparing it for use. Throws an
+@code{IllegalArgumentException} if the given attributes are not
+appropriate for this PRNG algorithm.
+@end deftypefun
+
+@deftypefun byte nextByte () throws LimitReachedException
+Returns the next pseudo-random byte in this generator's
+sequence. Throws a @code{LimitReachedException} if this generator
+cannot produce any more bytes of any quality.
+@end deftypefun
+
+@deftypefun void nextBytes (byte[] @var{out}, int @var{off}, int @var{len}) throws LimitReachedException
+Fills the buffer @var{out} with the next @var{len} bytes in this
+generator's sequence, storing the bytes beginning at @var{off}. Throws
+a @code{LimitReachedException} if this generator cannot produce any
+more bytes of any quality.
+@end deftypefun
+
+@deftypefun java.lang.String name ()
+Returns the canonical name of this PRNG algorithm.
+@end deftypefun
+
+@deftypefun java.lang.Object clone ()
+Returns a copy of this instance. The copy will be in the exact same
+state as this instance, and will be independent of this instance.
+@end deftypefun
+
+@c ------------------------------------------------------------------
+
+@node The PRNGFactory Class, ARCFour, The IRandom Interface, Random Numbers
+@section The PRNGFactory Class
+
+@cindex @b{getInstance} function (@code{PRNGFactory})
+@deftypefun IRandom getInstance (java.lang.String @var{name})
+Returns an instance of the named PRNG algorithm, or @code{null} if no
+such named algorithm exists.
+@end deftypefun
+
+@cindex @b{names} function (@code{PRNGFactory})
+@deftypefun java.util.Set names ()
+Returns a @code{java.util.Set} of the names (@code{java.lang.String})
+of all available PRNG algorithms.
+@end deftypefun
+
+@c ------------------------------------------------------------------
+
+@node ARCFour, MDGenerator, The PRNGFactory Class, Random Numbers
+@section ARCFour
+
+The ARCFour keystream is implemented in the
+class @code{ARCFour}, which defines the following additional constant:
+
+@cindex @b{ARCFOUR_KEY_MATERIAL} variable (@code{ARCFour})
+@deftypevar java.lang.String ARCFOUR_KEY_MATERIAL
+A property name in the attributes map used to initialize instances of
+@code{ARCFour}. The value mapped must be a byte array of the secret
+key, which can be up to 256 bytes long.
+@end deftypevar
+
+Also note that using the ARCFour PRNG as a stream cipher is as simple
+as:
+
+@example
+IRandom arcfour; // initialized elsewhere.
+byte in, out;
+
+out = in ^ arcfour.next();
+@end example
+
+@c ------------------------------------------------------------------
+
+@node MDGenerator, ICMGenerator, ARCFour, Random Numbers
+@section MDGenerator
+
+Generic message digest-based PRNGs are implemented via the
+@code{MDGenerator} class, which defines the following additional
+constants:
+
+@deftypevar java.lang.String MD_NAME
+A property name in the attributes map used to initialize instances of
+@code{MDGenerator}. The value mapped must be a @code{String}
+representing the name of the hash function to use, such as
+``MD5''. If this attribute is omitted the secure hash algorithm,
+SHA-1, is used.
+@end deftypevar
+
+@deftypevar java.lang.String SEEED
+A property name in the attributes map used to initialize instances of
+@code{MDGenerator}. The value mapped must be a byte array carrying the
+seed, with which to seed the PRNG. This attribute is optional.
+@end deftypevar
+
+@c ------------------------------------------------------------------
+
+@node ICMGenerator, UMacGenerator, MDGenerator, Random Numbers
+@section ICMGenerator
+
+The ICM generator accepts a number of additional parameters, all
+contained in the following constants of the @code{ICMGenerator}
+class. The appropriate values, including the limits of the integral
+types, are specific to the ICM generator algorithm.
+
+@deftypevar java.lang.String BLOCK_INDEX_LENGTH
+A property name in the attributes map used to initialize instances of
+@code{ICMGenerator}. The value mapped must be a @code{java.lang.Integer}.
+@end deftypevar
+
+@deftypevar java.lang.String CIPHER
+A property name in the attributes map used to initialize instances of
+@code{ICMGenerator}. The value mapped must be a
+@code{gnu.crypto.cipher.IBlockCipher}, and is the underlying cipher
+used in the algorithm.
+@end deftypevar
+
+@deftypevar java.lang.String OFFSET
+A property name in the attributes map used to initialize instances of
+@code{ICMGenerator}. The value mapped must be a
+@code{java.math.BigInteger} or a byte array of the same length of the
+underlying cipher's block size.
+@end deftypevar
+
+@deftypevar java.lang.String SEGMENT_INDEX
+A property name in the attributes map used to initialize instances of
+@code{ICMGenerator}. The value mapped must be a
+@code{java.math.BigInteger}.
+@end deftypevar
+
+@deftypevar java.lang.String SEGMENT_INDEX_LENGTH
+A property name in the attributes map used to initialize instances of
+@code{ICMGenerator}. The value mapped must be a @code{java.lang.Integer}.
+@end deftypevar
+
+@c ------------------------------------------------------------------
+
+@node UMacGenerator, PRNG Example, ICMGenerator, Random Numbers
+@section UMacGenerator
+
+The UMac KDF generator accepts the following additional parameters,
+which are contained in the @code{UMacGenerator} class.
+
+@deftypevar java.lang.String CIPHER
+A property name in the attributes map used to initialize instances of
+@code{UMacGenerator}. The value mapped must be of type
+@code{gnu.crypto.cipher.IBlockCipher}.
+@end deftypevar
+
+@deftypevar java.lang.String INDEX
+A property name in the attributes map used to initialize instances of
+@code{UMacGenerator}. The value mapped must be of type
+@code{java.lang.Integer}.
+@end deftypevar
+
+@c ------------------------------------------------------------------
+
+@node PRNG Example, , UMacGenerator, Random Numbers
+@section PRNG Example
+
+@example
+Map attrib = ...;
+IRandom rand = PRNGFactory.getInstance("MD");
+
+attrib.put(MDGenerator.MD_NAME, "MD5");
+attrib.put(MDGenerator.SEEED, seedBytes);
+
+random.init(attrib);
+
+for (int i = 0; i < bytes.length; i++)
+   @{
+      in[i] ^= random.nextByte();
+   @}
+
+random.nextBytes(bytes, 0, bytes.length);
+@end example

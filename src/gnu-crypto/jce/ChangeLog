@@ -1,0 +1,22 @@
+For GNU Crypto 1.1.0:
+   + Removing anything that isn't needed to build the JCE libraries (the
+     ASN.1 stuff is the only non-javax.crypto package kept).
+   + The build environment itself has been added.
+   + The `javax.crypto.JCEUtil' class now has a safety net to prevent
+     infinite loops in the case where algorithm aliases are circular. Such
+     as:
+        Alg.Alias.Cipher.VLADIMIR=ESTRAGON
+        Alg.Alias.Cipher.ESTRAGON=VLADIMIR
+   + Each source file now has a short license declaration at the top; the
+     oringinal sources had no such declaration.
+   + The `javax/crypto/interfaces/PBEKey.java' interface has been added.
+
+
+For Bouncy Castle release 1.16:
+
+- Bug fix for 1.15 removed (the bug is fixed in BC 1.16). The source
+  tree now consists entirely of Bouncy Castle's code.
+
+For Bouncy Castle release 1.15:
+
++ Bug fix to the javax.crypto.Mac's clone() method.

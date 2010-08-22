@@ -1,0 +1,82 @@
+Gnu Crypto
+===========
+
+1. Mission Statement
+---------------------
+The gnu.crypto project aims at providing versatile, high-quality, and provably
+correct implementations of cryptographic primitives and tools in the Java
+programming language for use by programmers and end-users.
+
+
+2. Versatilitiy
+----------------
+JavaSoft's JCA/JCE is a de-facto standard of a cryptographic API, but is not
+the only one!  Others; eg. GSS-API, exist.  There is also no proof that the jce
+_is_ an optimal minimalist API on which to build more elaborate ones.  Needing
+access to cryptographic primitive implementations that do not require the heavy
+JCA/JCE is a reality; eg. need to encrypt database user credentials data in an
+application.  This package should be able to provide this.
+
+This by no means implies that gnu.crypto _replaces_ or obviates the need of the
+JCA/JCE.  The gnu.crypto library _is not_ another JCE implementation.  It
+should be capable of being used by JCE implementations --a list of such
+implementations may include JavaSoft's jdk1.4 (which is supposed to include a
+JCE), cryptix (<http://www.cryptix.org>) and bouncycastle
+(<http://www.bouncycastle.org/>).
+
+Other framework should also be considered; eg. the now in gestation GSS-API in
+Java (see JSR-72 <http://jcp.org/jsr/detail/72.jsp>).
+
+
+3. High Quality
+----------------
+By this i mean fast, thread-safe, even multi-threaded, and hardware-friendly
+implementations.  If this means different implementations each suited to
+specific environments, so be it.  Configuration needs should not be sacrificed
+for programmers' convenience.
+
+
+4. Correctness
+---------------
+There is no point in having a fast implementation of an algorithm that is not
+correct.  Defining what correct means and how to prove it would help us, and
+others, learn new techniques to incorporate and follow, in implementations, to
+ensure attaining such objective.
+
+
+5. Tools
+---------
+Having access to tools that exercise cryptographic primitives to evaluate their
+performance and characteristics help programmers and designers when selecting
+primitives for their application.  There are always subtle differences between
+algorithms --not to mention different implementations of the same algorithm.
+Performance is affected by the platform on which the implementation is supposed
+to run.  All these imponderables tend to blur the vision of the designer and/or
+architect; as a consequence they then choose _one_ algorithm, usually the most
+talked about in the magazines they read and forget about it.
+
+Here is a list of features such tools may offer:
+
+* measuring dispersion (white noise quality) with prng implementations,
+* pattern detection in cipher output.
+* compose, and why not through a GUI :-), ciphers from more basic objects:
+  SBox, Feistel, LFSR (Linear Feedback Shift Register), etc...
+* comparing output with published test vectors.
+
+
+6. Coding Style
+----------------
+Source code in the repository must be written in conformance to the Coding
+Style guidelines used in this project; i.e.:
+
+JavaStyle <http://www.gnu.org/software/classpathx/crypto/guide/JavaStyle.html>,
+AntStyle <http://www.gnu.org/software/classpathx/crypto/guide/AntStyle.html>.
+
+
+The home page for this project is at http://www.gnu.org/software/gnu-crypto/.
+
+
+7. Building
+------------
+See the file INSTALL in the same directory where this file resides.
+

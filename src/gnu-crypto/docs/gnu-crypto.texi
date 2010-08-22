@@ -1,0 +1,412 @@
+\input texinfo  @c GNU Crypto user's manual
+@c %**start of header
+@setfilename gnu-crypto.info
+@settitle Programming with GNU Crypto @value{VERSION}
+@c %**end of header
+
+@include version.texi
+
+@iftex
+@raggedbottom
+@end iftex
+@defindex fg
+@copying
+This manual is for the GNU Crypto library, version @value{VERSION}.
+
+Copyright @copyright{} 2003 The Free Software Foundation, Inc.
+
+@sp 1
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts, and no Back Cover Texts. A
+copy of the license is included in the section entitled ``GNU Free
+Documentation License''.
+
+@end copying
+
+@titlepage
+@title Programming with GNU Crypto
+@subtitle Version @value{VERSION}, @value{UPDATED}
+@author Casey Marshall
+@author Raif S. Naffah
+
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+
+@page
+@vskip 0pt plus 1fill
+@center @sc{In Hoc Signo Tectis}
+@center @image{diagrams/logo, 6in}
+
+@end titlepage
+
+@ifnottex
+@node Top, Introduction, , (dir)
+@top Programming with GNU Crypto @value{VERSION}
+@end ifnottex
+
+@menu
+* Introduction::                     About GNU Crypto.
+* Ciphers::                          Using basic ciphers
+* Modes::                            Using ciphers in other modes.
+* Padding::                          Padding schemes.
+* Cascades and Assemblies::          A high-level API.
+* Message Digests::                  Computing message digests.
+* Message Authentication Codes::     Computing MACs.
+* Keypairs and Key Agreements::      Keypair generation and key agreements.
+* Signatures::                       Digital signing and verification.
+* Random Numbers::                   Creating streams of pseudo-random bits.
+* JCE Support::                      The GNU Crypto JCE provider.
+* GNU Free Documentation License::   Copying this manual.
+* Copying GNU Crypto::               Copying GNU Crypto.
+* GNU General Public License::       The GNU General Public License.
+* Acknowledgements::                 Contributors to GNU Crypto.
+* Figure Index::                     Index of figures.
+* Index::                            Full index.
+* References::                       Sources for more information.
+
+Ciphers
+=======
+* The IBlockCipher Interface::     The standard block cipher interface.
+* The CipherFactory Class::        How to obtain a cipher instance.
+* Cipher Example::                 A simple programming example.
+
+Modes
+=====
+* The IMode Interface::            The standard mode interface.
+* The ModeFactory Class::          How to obtain a mode instance.
+* Mode Example::                   Example of transforming with modes.
+
+Padding
+=======
+* The IPad Interface::             The standard pad interface.
+* The PadFactory Class::           How to obtain a pad instance.
+* Padding Example::                Example of padding and unpadding.
+
+Cascades and Assemblies
+=======================
+* Cascades::                       The Cascade pattern and classes.
+* Assemblies::                     The Assembly pattern and classes.
+
+Message Digests
+===============
+* The IMessageDigest Interface::   The standard message digest interface.
+* The HashFactory Class::          How to obtain a message digest.
+* Message Digest Example::         Example of hashing data.
+
+Message Authentication Codes
+============================
+* The IMac Interface::             The standard MAC interface.
+* The MacFactory Class::           How to obtain a MAC instance.
+* TMMH/16::                        Extra parameters for TMMH/16.
+* UMAC-32::                        Extra parameter for UMAC-32.
+* MAC Example::                    Example of creating a MAC.
+
+Keypairs and Key Agreements
+===========================
+* Keypairs::                       Keypair generation, encoding and decoding.
+* Key Agreements::                 Key agreement protocols.
+
+Signatures
+==========
+* The ISignature Interface::          The base signature interface.
+* The SignatureFactory Class::        Creating signature instances.
+* The ISignatureCodec Interface::     Storing signatures.
+* The IKeyPairGenerator Interface::   Generating key pairs.
+* Algorithm-Specific Attributes::     Attributes specific to DSS and RSA-PSS.
+* The KeyPairGeneratorFactory Class:: Creating key pair generator instances.
+* The IKeyPairCodec Interface::       Storing key pairs.
+* Signature Example::                 Programming example.
+
+Random Numbers
+==============
+* The IRandom Interface::       The standard PRNG interface.
+* The PRNGFactory Class::       How to create an IRandom instance.
+* ARCFour::                     Extra properties in the ARCFOUR PRNG.
+* MDGenerator::                 Extra properties in the hash-based PRNG.
+* ICMGenerator::                Extra properties in the ICM PRNG.
+* UMacGenerator::               Extra properties in the UMac PRNG.
+* PRNG Example::                Programming example.
+
+JCE Support
+===========
+* Installing the JCE Classes::         How to install the clean-room JCE.
+* Installing the GNU Crypto Provider:: Using the GNU Crypto provider.
+* List of Available Algorithms::       Algorithms available through the JCE.
+@end menu
+
+@iftex
+@contents
+@page
+@end iftex
+
+@include intro.texi
+
+@iftex
+@page
+@vbox to @pageheight{
+  @vskip 0pt plus 1fil
+  @centerchap Part 1: The GNU Crypto API
+  @vskip 0pt plus 1fill
+}
+@end iftex
+
+@include ciphers.texi
+@include modes.texi
+@include pad.texi
+@include hlapi.texi
+@include cascade.texi
+@include assembly.texi
+@include hash.texi
+@include mac.texi
+@include key.texi
+@include keygen.texi
+@include keyagr.texi
+@include sig.texi
+@include prng.texi
+
+@iftex
+@page
+@vbox to @pageheight{
+  @vskip 0pt plus 1fil
+  @centerchap Part 2: External API Support
+  @vskip 0pt plus 1fill
+}
+@end iftex
+
+@include jce.texi
+@include fdl.texi
+
+@node Copying GNU Crypto, GNU General Public License, GNU Free Documentation License, Top
+@unnumbered Copying GNU Crypto
+
+@cindex GPL, GNU General Public License
+
+GNU Crypto is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the
+Free Software Foundation; either version 2, or (at your option) any
+later version.
+
+GNU Crypto is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; see the section ``The GNU General Public
+License'' in this manual.  If not, write to the
+
+@sp 1
+
+@display
+Free Software Foundation Inc.
+59 Temple Place---Suite 330
+Boston, MA 02111--1307
+USA
+@end display
+
+@sp 1
+
+Linking this library statically or dynamically with other modules is
+making a combined work based on this library.  Thus, the terms and
+conditions of the GNU General Public License cover the whole
+combination.
+
+As a special exception, the copyright holders of this library give
+you permission to link this library with independent modules to
+produce an executable, regardless of the license terms of these
+independent modules, and to copy and distribute the resulting
+executable under terms of your choice, provided that you also meet,
+for each linked independent module, the terms and conditions of the
+license of that module.  An independent module is a module which is
+not derived from or based on this library.  If you modify this
+library, you may extend this exception to your version of the
+library, but you are not obligated to do so.  If you do not wish to
+do so, delete this exception statement from your version.
+
+@include gpl.texi
+
+@node Acknowledgements, Figure Index, GNU General Public License, Top
+@unnumbered Acknowledgements
+
+Many people contribute to the GNU Crypto project, and in many different
+capacities. Any omission to this list is accidental. Feel free to
+contact @email{raif@@fl.net.au} if you have been left out.
+
+@cindex Barreto, Paulo
+@cindex Ferrier, Nic
+@cindex Kmett, Edward
+@cindex Koch, Werner
+@cindex Louchart-Flecher, Olivier
+@cindex Marshall, Casey
+@cindex Naffah, Raif
+@cindex Osvik, Dag Arne
+@cindex Selensminde, Gisle
+@cindex Wielaard, Mark
+@cindex Wu, Thomas
+@sp 1
+
+@iftex
+@itemize
+
+@item@hbox to .5@pagewidth{Barreto, Paulo S.@ L.@ M.@hfill}
+@email{paulo.barreto@@terra.com.br}
+
+@item@hbox to .5@pagewidth{Ferrier, Nic@hfill}
+@email{nferrier@@tapsellferrier.co.uk}
+
+@item@hbox to .5@pagewidth{Kmett, Edward@hfill}
+@email{ekmett@@cxss.com}
+
+@item@hbox to .5@pagewidth{Koch, Werner@hfill}
+@email{wk@@gnupg.org}
+
+@item@hbox to .5@pagewidth{Louchart-Fletcher, Olivier@hfill}
+@email{olivier@@zipworld.com.au}
+
+@item@hbox to .5@pagewidth{Marshall, Casey@hfill}
+@email{rsdio@@metastatic.org}
+
+@item@hbox to .5@pagewidth{Naffah, Raif S.@hfill}
+@email{raif@@fl.net.au}
+
+@item@hbox to .5@pagewidth{Osvik, Dag Arne@hfill}
+@email{osvik@@ii.uib.no}
+
+@item@hbox to .5@pagewidth{Selensminde, Gisle@hfill}
+@email{gselens@@broadpark.no}
+
+@item@hbox to .5@pagewidth{Wielaard, Mark@hfill}
+@email{mark@@klomp.org}
+
+@item@hbox to .5@pagewidth{Wu, Thomas J.@hfill}
+@email{tom@@arcot.com}
+
+@end itemize
+@end iftex
+
+@ifnottex
+@example
+Barreto, Paulo S. L. M.      @email{paulo.barreto@@terra.com.br}
+Ferrier, Nic                 @email{nferrier@@tapsellferrier.co.uk}
+Kmett, Edward                @email{ekmett@@cxss.com}
+Koch, Werner                 @email{wk@@gnupg.org}
+Louchart-Fletcher, Olivier   @email{olivier@@zipworld.com.au}
+Marshall, Casey              @email{mstatic@@metastatic.org}
+Naffah, Raif S.              @email{raif@@fl.net.au}
+Osvik, Dag Arne              @email{osvik@@ii.uib.no}
+Selensminde, Gisle           @email{gselens@@broadpark.no}
+Wielaard, Mark               @email{mark@@klomp.org}
+Wu, Thomas J.                @email{tom@@arcot.com}
+@end example
+@end ifnottex
+
+@iftex
+@normalbottom
+@end iftex
+
+@node Figure Index, Index, Acknowledgements, Top
+@unnumbered Figure Index
+
+@printindex fg
+
+@node Index, References, Figure Index, Top
+@unnumbered Index
+
+@printindex cp
+
+@node References, , Index, Top
+@unnumbered References
+
+@table @asis
+
+@item [Kal92]
+Burton Kaliski, @i{The MD2 Message-Digest Algorithm}, RFC 1319.
+
+See @url{http://www.ietf.org/rfc/rfc1319.txt}.
+
+@sp 1
+
+@item [Kro00]
+Ted Krovetz, John Black, Shai Halevi, Alejandro Hevia, Hugo Krawczyk,
+and Phillip Rogaway, @i{UMAC: Message Authentication Code using
+Universal Hashing}, Internet-Draft, October 2000.
+
+See
+@url{http://www.cs.ucdavis.edu/~rogaway/umac/draft-krovetz-umac-01.txt}.
+
+@sp 1
+
+@item [McG02]
+David A. McGrew, @i{The Truncated Multi-Modular Hash Function (TMMH),
+Version Two}, Internet-Draft, October 2002.
+
+See
+@url{http://www.ietf.org/internet-drafts/draft-irtf-cfrg-tmmh-00.txt}.
+
+@sp 1
+
+@item [MOV96]
+Alfred J. Menezes, Paul C. Van Oorschot, Scott A. Vanstone (Editor);
+@i{Handbook of Applied Cryptography} (1992 CRC Press); ISBN 0849385237.
+
+@sp 1
+
+@item [NIST95]
+Federal Information Processing Standards Publication 180-1: Secure Hash
+Standard. 17 April 1995, National Institute for Standards and
+Technology.
+
+See @url{http://www.itl.nist.gov/fipspubs/fip180-1.htm}.
+
+@sp 1
+
+@item [NIST01]
+Federal Information Processing Standards Publication 197: Advanced
+Encryption Standard (AES). 26 November 2001, National Institute for
+Standards and Technology.
+
+See @url{http://csrc.nist.gov/publications/fips/fips197/fips-197.pdf}.
+
+@sp 1
+
+@item [RFC2631]
+Eric Rescorla. @i{Diffie-Hellman Key Agreement Method}.
+
+See @url{http://www.ietf.org/rfc/rfc2631.txt}.
+
+@sp 1
+
+@item [Riv92a]
+Ron Rivest, @i{The MD4 Message-Digest Algorithm}, RFC 1320.
+
+See @url{http://www.ietf.org/rfc/rfc1320.txt}.
+
+@sp 1
+
+@item [Riv92b]
+Ron Rivest, @i{The MD5 Message-Digest Algorithm}, RFC 1321.
+
+See @url{http://www.ietf.org/rfc/rfc1321.txt}.
+
+@sp 1
+
+@item [Sch95]
+Bruce Schneier, @i{Applied Cryptography: Protocols, Algorithms, and
+Source Code in C, Second Edition} (1995 John Wiley & Sons); ISBN
+0471117099.
+
+@sp 1
+
+@item [Wu02]
+Thomas J. Wu, @i{SRP-6: Improvements and Refinements to the Secure
+Remote Password Protocol} (29 October 2002).
+
+See @url{http://srp.stanford.edu/srp6.ps}.
+
+@end table
+
+@bye

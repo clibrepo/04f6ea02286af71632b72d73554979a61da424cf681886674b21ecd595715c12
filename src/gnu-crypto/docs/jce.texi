@@ -1,0 +1,96 @@
+@node JCE Support, GNU Free Documentation License, Random Numbers, Top
+@chapter JCE Support
+
+GNU Crypto provides a full JCE (Java Cryptography Environment) provider for all
+its algorithms. This chapter breifly describes these classes and how to use
+them.
+
+@menu
+* Installing the JCE Classes::         How to install the clean-room JCE.
+* Installing the GNU Crypto Provider:: Using the GNU Crypto provider.
+* List of Available Algorithms::       Algorithms available through the JCE.
+@end menu
+
+@node Installing the JCE Classes, Installing the GNU Crypto Provider, JCE Support, JCE Support
+@section Installing the JCE Classes
+
+Java runtimes such as those based around Classpath, Kaffe, and JREs from Sun and
+IBM up to version 1.4 do not include the JCE classes, encompassed by the
+@code{javax.crypto} package and its subpackages. Furthermore, many commercial
+Java 1.4 and later runtime environments do not allow providers to be installed
+if they are not digitally signed by an authority. The GNU Crypto developers do
+not agree with this practice and are not seeking to have GNU Crypto's provider
+signed.
+
+To overcome this GNU Crypto includes a clean-room implementation of the
+@code{javax.crypto} packages, which is a modified version of the clean-room JCE
+distributed by the Legion of the Bouncy Castle
+@url{http://bouncycastle.org/}. If building these classes is enabled at
+compile-time, a Java archive file @code{javax-crypto.jar} will be built, along
+with the appropriate shared native libraries if you are using GCJ. Simply adding
+it to your system classpath should suffice, possibly replacing or superceding
+the @code{jce.jar} file that came with your virtual machine.
+
+The JCE included mirrors most of the features of the reference JCE, except the
+@code{ExemptionMechanism} classes are omitted. U.S. export rules as of January
+2000 no longer apply to open source software that is freely available on the
+Internet, so these classes have no practical use in GNU Crypto.
+
+@node Installing the GNU Crypto Provider, List of Available Algorithms, Installing the JCE Classes, JCE Support
+@section Installing the GNU Crypto Provider
+
+The GNU Crypto provider is implemented in the class
+@code{gnu.crypto.jce.GnuCrypto}, and is available by the name ``GNU
+Crypto''. You can install this provider at run-time by including in your program
+a statement such as:
+
+@example
+java.security.Security.addProvider(new gnu.crypto.jce.GnuCrypto());
+@end example
+
+Or by putting the following in your security properties file, usually located at
+@code{$@{JRE_HOME@}/lib/security/$@{VM_NAME@}.security}:
+
+@example
+security.provider.N=gnu.crypto.jce.GnuCrypto
+@end example
+
+Where `N' is the appropriate preference number. Doing this, and asserting that
+the @code{gnu-crypto.jar} file is in your classpath, will complete the
+installation of the provider.
+
+@node List of Available Algorithms, , Installing the GNU Crypto Provider, JCE Support
+@section List of Available Algorithms
+
+The algorithms available through the GNU Crypto provider are, grouped by type,
+with alternate names in parentheses:
+
+@itemize
+@item
+@b{Cipher}: AES, ANUBIS, ARCFOUR (RC4), BLOWFISH, DES, KHAZAD, RIJNDAEL, SERPENT,
+SQUARE, TRIPLEDES, TWOFISH.
+
+Ciphers may, of course, be appended with any of the modes and paddings available
+in GNU Crypto, such as ``AES/CBC/TBC''.
+
+@item
+@b{KeyPairGenerator}: DSS (DSA), RSA.
+
+@item
+@b{MAC}: HMAC-MD2, HMAC-MD4, HMAC-MD5, HMAC-RIPEMD128 (HMAC-RIPEMD-128),
+HMAC-RIPEMD160 (HMAC-RIPEMD-160), HMAC-SHA160 (HMAC-SHA, HMAC-SHA1,
+HMAC-SHA-160, HMAC-SHS), HMAC-TIGER, HMAC-WHIRLPOOL, TMMH16, UHASH32, UMAC32.
+
+@item
+@b{MessageDigest}: MD2, MD4, MD5, RIPEMD128 (RIPEMD-128), RIPEMD-160
+(RIPEMD-160), SHA-160 (SHA, SHA1, SHA-1, SHS), TIGER, WHIRLPOOL.
+
+@item
+@b{SecureRandom}: ARCFOUR (RC4), ICM, MD2PRNG, MD4PRNG, MD5PRNG, RIPEMD128PRNG,
+RIPEMD160PRNG, SHA-160PRNG (SHAPRNG, SHA-1PRNG, SHA1PRNG), TIGERPRNG,
+WHIRLPOOLPRNG, UMAC-KDF.
+
+@item
+@b{Signature}: DSS/RAW (SHA/DSA, SHA1/DSA, SHA-1/DSA, SHA-160/DSA, DSAwithSHA,
+DSAwithSHA1, DSAwithSHA160), RSA-PSS/RAW (RSA-PSS, RSAPSS).
+@end itemize

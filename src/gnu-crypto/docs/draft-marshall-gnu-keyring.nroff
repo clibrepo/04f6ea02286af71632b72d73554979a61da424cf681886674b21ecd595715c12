@@ -1,0 +1,1047 @@
+.\" GNU Keyring File Format. -*- nroff -*-
+.\" $Id: draft-marshall-gnu-keyring.nroff,v 1.4 2003/10/22 08:12:49 rsdio Exp $
+.pl 10.0i
+.po 0
+.ll 7.2i
+.lt 7.2i
+.nr LL 7.2i
+.nr LT 7.2i
+.ds LF draft-marshall-gnu-keyring-00
+.ds RF FORMFEED[Page %]
+.ds LH Marshall
+.ds RH September 2003
+.ds CH The GNU Keyring File Format
+.hy 0
+.ad l
+.in 0
+GNU Crypto Project                                         C. Marshall
+draft-marshall-gnu-keyring-00                           September 2003
+Expires: March 2004
+
+.ce
+The GNU Keyring File Format
+
+.in 3
+.ti 0
+Status of this Memo
+
+This document is a ``rough draft,'' and should not be considered a
+fixed format. The values and structures described below are subject
+to change without notice.
+
+This is not an Internet-Draft, and is not associated with or endorsed
+by the Internet Engineering Task Force. We use the format of
+Internet-Drafts and RFCs for convenience and familiarity.
+
+.ti 0
+Abstract
+
+This is a proposal for a new keyring format, to be used by GNU Java
+implementations (Classpath, GCJ, GNU Crypto) as the official
+``keystore'' format for those platforms. It need not be limited to
+Java platforms, however, as it is flexible enough a format to
+accommodate different applications.
+
+.ti 0
+Table of Contents
+
+.nf
+1.     Introduction . . . . . . . . . . . . . . . . . . . . . .  XX
+1.1.   Data Types  . . . . . . . . . . . . . . . . . . . . . . . XX
+1.2.   Notation . . . . . . . . . . . . . . . . . . . . . . . .  XX
+2.     Magic Bytes/Version Number  . . . . . . . . . . . . . . . XX
+2.1.   Ring Usage . . . . . . . . . . . . . . . . . . . . . . .  XX
+3.     Packets . . . . . . . . . . . . . . . . . . . . . . . . . XX
+3.1.   Properties . . . . . . . . . . . . . . . . . . . . . . .  XX
+3.1.1  Property Packets  . . . . . . . . . . . . . . . . . . . . XX
+3.2.   Envelope Types . . . . . . . . . . . . . . . . . . . . .  XX
+3.2.1. Encrypted . . . . . . . . . . . . . . . . . . . . . . . . XX
+3.2.2. Password-Encrypted . . . . . . . . . . . . . . . . . . .  XX
+3.2.3. Authenticated . . . . . . . . . . . . . . . . . . . . . . XX
+3.2.4. Password-Authenticated . . . . . . . . . . . . . . . . .  XX
+3.2.5. Compressed  . . . . . . . . . . . . . . . . . . . . . . . XX
+3.3.   Extension Values . . . . . . . . . . . . . . . . . . . .  XX
+3.4.   Primitive Types . . . . . . . . . . . . . . . . . . . . . XX
+3.4.1. Trusted Certificates . . . . . . . . . . . . . . . . . .  XX
+3.4.2. Public Keys . . . . . . . . . . . . . . . . . . . . . . . XX
+3.4.3. Private Keys . . . . . . . . . . . . . . . . . . . . . .  XX
+3.4.4. X.509 Certificate Paths . . . . . . . . . . . . . . . . . XX
+3.4.5. Binary Data  . . . . . . . . . . . . . . . . . . . . . .  XX
+3.4.   Properties  . . . . . . . . . . . . . . . . . . . . . . . XX
+3.4.1. Property Set . . . . . . . . . . . . . . . . . . . . . .  XX
+3.4.2. Property Type . . . . . . . . . . . . . . . . . . . . . . XX
+4.     Required Layouts . . . . . . . . . . . . . . . . . . . .  XX
+4.1.   Read-only Layouts . . . . . . . . . . . . . . . . . . . . XX
+5.     GNU Raw Codec  . . . . . . . . . . . . . . . . . . . . .  XX
+5.1.   DSA . . . . . . . . . . . . . . . . . . . . . . . . . . . XX
+5.2.   RSA  . . . . . . . . . . . . . . . . . . . . . . . . . .  XX
+5.3.   Diffie-Hellman  . . . . . . . . . . . . . . . . . . . . . XX
+6.     Parsing Methodology  . . . . . . . . . . . . . . . . . .  XX
+7.     Other Formats . . . . . . . . . . . . . . . . . . . . . . XX
+.in 10
+Security Considerations  . . . . . . . . . . . . . . . .  XX
+References  . . . . . . . . . . . . . . . . . . . . . . . XX
+Authors' Addresses . . . . . . . . . . . . . . . . . . .  XX
+Full Copyright Statement  . . . . . . . . . . . . . . . . XX
+
+.in 3
+.fi
+
+.ti 0
+1. Introduction.
+
+The GNU Keyring file format is a proposed standard file format for the
+long-term storage of cryptographic data, such as private keys and
+digital certificates. This format is being designed with the following
+goals:
+
+.in 6
+.ti 4
+* Protection of trusted credentials, through the use of a
+password-based MAC (message authentication code) over these
+credentials.
+
+.ti 4
+* Protection of secret credentials, through the use of a
+password-based MAC over the data, which is encrypted with a
+strong, password-based cipher.
+
+.ti 4
+* Management of disparate types of cryptographic data, such as
+different types of digital certificate.
+
+.ti 4
+* Extensibility. It should be possible to extend the file format
+when new requirements arise, without undo breakage of existing
+applications.
+
+.ti 4
+* Compatibility with the JDK. This means that it should be possible
+to use this format as a keystore, so GNU implementations of the
+Java platform can provide the same functionality as the JDK.
+
+.in 3
+An implementation of this format is included in the Free Software
+Foundation's GNU Crypto project, a cryptographic library written in
+Java. The full copyright of GNU Crypto is included at the end of this
+document.
+
+.bp
+.ti 0
+1.1. Data Types.
+
+Data read and written to keyrings will be one of the following types:
+
+.in 10
+.ti 3
+uint8     An unsigned byte.
+
+.ti 3
+uint16    An unsigned two-byte integer, in big-endian byte order.
+
+.ti 3
+unit32    An unsigned four-byte integer.
+
+.ti 3
+uint64    An unsigned eight-byte integer.
+
+.nf
+.ti 3
+octet sequence (os)
+An arbitrary byte array, stored as
+
+.ti 13
+1. the length of the byte array, encoded in a uint32.
+.ti 13
+2. the bytes themselves.
+
+.fi
+.ti 3
+u8string  A sequence of UTF-8 bytes, stored as the a uint16 length field,
+then that many bytes. (see java.io.DataOutput.writeUTF)
+
+.ti 3
+bigint    An arbitrary-precision signed integer, stored as
+
+.nf
+.ti 13
+1. the length of the byte array, encoded in a uint32.
+.ti 13
+2. the minimum number of bytes in two's complement notation.
+.fi
+
+.ti 3
+byte[l]   A fixed-length byte array, stored without length.
+
+.in 3
+.bp
+.ti 0
+1.2. Notation.
+
+When defining constants in this document, we shall use the following
+style, similar to the C preprossesor:
+
+.ti 6
+#define CONSTANT_NAME VALUE
+
+When showing the format of packets, we use the following form,
+assuming that fields are concatenated from top to bottom:
+
+.nf
+.in 6
+type1            Description of field 1.
+type2            Description of field 2.
+ ...
+.fi
+.in 3
+
+To show the intended structure of compound types, we will use the
+following Lisp-like notation:
+
+.nf
+.in 6
+(level-1
+  (level-2
+    (level-3)
+  )
+)
+.fi
+.in 3
+
+By this we mean that the entity named `level-1' contains the entity
+named `level-2', which in turn contains the entity named `level-3',
+which is a primitive type and contains no other sub-types.
+
+Numbers are written in base 10, unless they are prefixed by `0x',
+when they will be written in base 16. Thus, the value `0x0123457'
+would mean the decimal value `1193047'.
+
+The key words ``MUST'', ``MUST NOT'', ``REQUIRED'', ``SHALL'',
+``SHALL NOT'', ``SHOULD'', ``SHOULD NOT'', ``RECOMMENDED'',
+``MAY'', and ``OPTIONAL'' in this document are to be interpreted as
+described in [RFC2119].
+
+.bp
+.ti 0
+2. Magic Bytes/Version Number.
+
+To identify keyrings by content, and to protect against
+incompatibilities when the format evolves, all keyrings will begin
+with the following bytes:
+
+.nf
+.in 6
+byte[3]             The bytes ``GKR''.
+uint8               Version number.
+.fi
+.in 3
+
+The current version number shall be 1. Thus keyrings described in
+this document shall begin with the value 0x474b5201.
+
+In magic(5) parlance, this would be:
+
+.nf
+.in 6
+0        string    GKR  GNU keyring file
+>3       byte      x    version %d
+.fi
+.in 3
+
+.ti 0
+2.1. Ring Usage.
+
+Immediately following the four-byte magic and version data will be
+a one-byte ``ring usage'' field. The presence of set bits in this
+byte shall declare what may be stored in this keyring.
+
+The currently defined bits, from least-significant up, are:
+
+.nf
+.in 6
+Bit     Meaning
+---     -------
+ 0      Private keys may be stored in this keyring.
+ 1      Personal certificate chains and public keys may be
+        stored in this keyring.
+ 2      Trusted certificates may be stored in this keyring.
+.fi
+.in 3
+
+The remaining bits are undefined for this version of GNU keyrings,
+and MUST be ignored.
+
+The layout for particular keyring types are described in section 4,
+Required Layouts.
+
+Conformant implementations MUST be able to read keyrings with the
+following usage fields:
+
+.in 6
+.ti 4
+* With only trusted certificates (bit 2).
+
+.ti 4
+* With only private keys and personal certificate chains or public
+keys (bits 0 and 1).
+.in 3
+
+These two types correspond to ``trusted credentials'' and
+``personal credentials'', respectfully. Since these two are the
+most common uses of key storage -- one way to securely store
+trusted credentials such as CA certificates, and one way to
+securely store public and private keys -- these types of keyrings
+are the ones REQUIRED by this format.
+
+.bp
+.ti 0
+3. Packets.
+
+The keyring shall then contain one or more packets, all of which,
+aside from a few exceptions, have the following form:
+
+.nf
+.in 6
+uint8        Content-type.
+os           Properties.
+os           Packet data.
+.fi
+.in 3
+
+At the top level, following the magic bytes, there must be only a
+single packet. As such, the packet appearing first in the file is
+typically an envelope type, which contains some number of primitive
+types.
+
+Unknown or unsupported content types do not necessarily mean that
+parsing should stop, especially in the case of packets marked OPTIONAL
+in this 
+
+.ti 0
+3.1. Properties.
+
+Every packet begins with a set of ``properties'' -- a series of
+name-value pairs. These properties have a variety of uses, from
+naming packets to defining the algorithms used in encoding packets. 
+
+Property packets are the only exception to the packet encoding rule
+above.
+
+.ti 0
+3.1.1. Property packets.
+
+The data of the ``properties'' field in packets is a sequence of one
+or more of the following packets:
+
+.nf
+.in 6
+u8string            Property name.
+u8string            Property value.
+.fi
+.in 3
+
+Property names are treated case-insensitively, while property values
+are not, unless specified otherwise.
+
+Different types of packets require certain properties to be defined in
+the packet. These properties will be described along with the
+description of that packet.
+
+.bp
+.ti 0
+3.2. Envelope Types.
+
+Envelope types contain other types, usually to transform their
+contents. The types are encoded by merely concatenating multiple
+types together, with the end of the sequence corresponding to the
+end of the octet sequence.
+
+All envelope types MUST contain a property "alias-list", the value
+of which will be composed of the concatenation of the following for
+each of the contained types, separated by a single semicolon (';',
+Unicode value 0x003B):
+
+.in 9
+.ti 6
+1) The value of the "alias" property if the entry is a primitive
+type (primitive types are described in section 3.2).
+
+.ti 6
+2) The value of the "alias-list" property if the entry is an
+envelope type.
+.in 3
+
+That is, the recursive list of contained aliases will be flattened
+into a single, top-level list.
+
+.bp
+.ti 0
+3.2.1. Encrypted.
+
+.ti 6
+#define GKR_TYPE_ENCRYPTED 0
+
+Encrypted enveloped types transform their enclosed types with a
+strong block cipher and an external key (for encipherment based on
+a password, see Section 3.2.2). The form of the key and the IV is
+not handled in this document; it is imagined as coming from a
+device that ensures secure production of a given array of bytes. 
+
+The encrypted data field is the encoded contained packets encrypted
+with the cipher.
+
+Encrypted packets require the following properties, whose values are
+treated case-insensitively:
+
+.in 9
+.ti 6
+cipher -- This is the name of the cipher algorithm. At minimum,
+implementations must recognize the value "AES", which means the
+Advanced Encryption Standard cipher, described in [AES]. The key
+length for this cipher is 128 bits.
+
+.ti 6
+mode -- This is the name of the mode that the cipher is used
+in. Implementations must be able to support the "OFB" and "CBC" modes,
+which correspond to the Output Feedback mode and the Cipher Block
+Chaining mode.
+
+.ti 6
+keylen -- The length of the key passed to the cipher, in bytes.
+.in 3
+
+The padding for these ciphers shall be the same as that in
+[PKCS7]. That is, if the plaintext is L bytes long, the padding will
+be
+
+.nf
+.in 6
+01             if (L % bs) == 1
+02 02          if (L % bs) == 2
+ ...
+16 16 ... 16   if (L % bs) == 0
+.fi
+.in 3
+
+The AES is described in [AES].
+
+This type of envelope is OPTIONAL in conformant applications. It is
+included for completeness in the specification, and MAY be used in
+applications where password-based encryption is not appropriate.
+Implementations that cannot or do not want to use this type of
+``raw'' encryption MUST still be able to parse these packets, but
+their contents may be discarded or ignored.
+
+.bp
+.ti 0
+3.2.2. Password-Encrypted.
+
+.ti 6
+#define GKR_TYPE_PBE 1
+
+Password-encrypted enveloped types use a combination of a password
+key-derivation function and a block cipher.
+
+The key derivation function is always KDF2 as described in
+[RFC2898] with HMAC-SHA-1 as the PRF, and the iteration count will
+fixed at 1000.
+
+The required properties are the same as in `GKR_TYPE_ENCRYPTED',
+with the following additional properties:
+
+.in 9
+.ti 6
+salt -- This is a random eight-byte value, encoded as a hexadecimal
+string. That is, the string "0123456789ABCDEF" is a valid value. This
+property is case-insensitive.
+.in 3
+
+Conformant applications MUST be able to parse password encrypted
+envelopes, and it is the default mode of protection.
+
+Two values are derived from the password, a key for the cipher, and an
+initialization vector. The length of the derived key is the value of
+the "keylen" property, and the IV length is the cipher's block size.
+
+.ti 6
+(dk,iv) = PBKDF2 (UTF8(password), salt, 1000, dkLen + bs)
+
+.bp
+.ti 0
+3.2.3. Authenticated.
+
+.ti 6
+#define GKR_TYPE_MAC 2
+
+Authenticated enveloped types run a keyed message authentication
+code over their enclosed types, appending the hash to the end of
+the packet. As with the encryption types described earlier, this
+form is meant to be of generic use, and applications will likely
+use the password-based alternative described in the next section.
+
+The required properties for authenticated envelopes are:
+
+.in 9
+.ti 6
+mac -- The name of the MAC algorithm to use. Required values for this
+property are "HMAC-MD5" and "HMAC-SHA-1". The HMAC is described in
+[RFC2104], MD5 is described in [RFC1321], and SHA-1 in [RFC3174].
+
+.ti 6
+maclen -- The length of the MAC.
+.in 3
+
+The authenticated data field is structured as follows:
+
+.nf
+.in 6
+byte[n-maclen]      The to-be-authenticated data.
+byte[maclen]        The MAC of the preceding.
+.fi
+.in 3
+
+The value `n' is equal to the length of the packet data octet
+sequence.
+
+This type, like the `GKR_ENCRYPTED' type, is OPTIONAL, and the same
+rules apply to this packet type.
+
+.bp
+.ti 0
+3.2.4. Password-Authenticated.
+
+.ti 6
+#define GKR_TYPE_PBMAC 3
+
+Password-authenticated enveloped types use a password KDF in similar
+fashion as password-encrypted enveloped types, but with a keyed
+message authentication code. Like that packet type, there is an
+additional required property "salt".
+
+The format of the authenticated data field and the supported
+algorithms is the same as `GKR_TYPE_MAC'.
+
+Conformant applications MUST be able to parse password
+authenticated envelopes, and it is the default mode of
+authentication.
+
+The MAC key is derived from the password in the same fashion as
+with password-encrypted types, and the length of the derived key
+shall be equal to the untruncated length of the HMAC's hash
+function, so:
+
+.nf
+.ce
+HMAC                  dkLen
+.ce
+================      =====
+.ce
+HMAC-MD5                 16
+.ce
+HMAC-SHA-1               20
+.fi
+
+.ti 0
+3.2.5. Compressed.
+
+.ti 6
+#define GKR_TYPE_COMPRESSED 4
+
+Compressed envelope types compress their contents with a standard
+compression algorithm.
+
+Compressed envelopes require the following property:
+
+.in 9
+.ti 6
+algorithm -- The name of the compression algorithm to use. The only
+required value for this property is "DEFLATE", which is described in
+[RFC1951].
+.in 3
+
+Conforming implementations MUST be able to decompress
+DEFLATE-compressed envelopes.
+
+.ti 0
+3.3. Extension values.
+
+Packet types not defined in this document are reserved for future
+use. They MUST NOT appear in version 1 keyrings.
+
+.bp
+.ti 0
+3.4. Primitive Types.
+
+Primitive types contain a single cryptographic entity. All primitive
+types require the following properties:
+
+.in 9
+.ti 6
+alias -- A non-empty string that uniquely identifies the entry. Alias
+names need only be unique across a single type, e.g. a private key
+entry and a certificate path entry can share the same alias.
+
+.ti 6
+creation-date -- The date that this entry was created, measured in
+milliseconds since 00:00:00 GMT, January 1, 1970. The value is written
+as a decimal string.
+.in 3
+
+Conforming implementations MUST be able to parse all primitive
+types described in this section.
+
+.ti 0
+3.4.1. Trusted Certificates.
+
+.ti 6
+#define GKR_TYPE_CERT 5
+
+This value denotes a ``trusted certificate entry''. The packet data is
+the encoded form of the certificate. These packets require the
+following property:
+
+.in 9
+.ti 6
+type -- The type of certificate that is encoded. This can be, for
+example, "X.509", which will denote X.509 certificates encoded as a
+DER-encoded ASN.1 sequence, as described in [RFC3280].
+.in 3
+
+.ti 0
+3.4.2. Public Keys.
+
+.ti 6
+#define GKR_TYPE_PUBLIC_KEY 6
+
+This value denotes an asymmetric public key. The required property for
+these packets is:
+
+.in 9
+.ti 6
+type -- The type of key, and its encoding method. Required values
+include "RAW-DSA", "RAW-RSA", "RAW-DH", and "X.509". The "RAW"
+encodings are described in section 5. The "X.509" encoding denotes a
+DER-encoded SubjectPublicKeyInfo ASN.1 structure, as described in
+[RFC3280].
+.in 3
+
+.ti 0
+3.4.3. Private and Secret Keys.
+
+.ti 6
+#define GKR_TYPE_PRIVATE_KEY 7
+
+This value denotes an asymmetric private key, or a symmetric secret
+key. The required property for these packets is:
+
+.in 9
+.ti 6
+type -- The type of key, and its encoding method. Required values
+include "RAW-DSA", "RAW-RSA", "RAW-DH", and "PKCS8". The "RAW"
+encodings are described in section 5. The "PKCS8" encoding denotes a
+DER-encoded PrivateKeyInfo ASN.1 structure, as described in
+[PKCS8].
+.in 3
+
+.ti 0
+3.4.4. X.509 Certificate Paths.
+
+.ti 6
+#define GKR_TYPE_X509_PATH 8
+
+This value denotes an X.509 certificate path, which typically
+compliments a private key with the same alias name. Each private key
+should have a corresponding certificate chain, but this is not
+required by the format.
+
+There are no additional properties required for this type. The packet
+data is simply the concatenation of one or more DER-encoded X.509
+certificates, which are described in [RFC3280].
+
+.ti 0
+3.4.5. Binary Data.
+
+#define GKR_TYPE_BINARY_DATA 9
+
+This value denotes a generic way to encode arbitrary binary data in
+the keyring. No processing of these packets is required by
+implementations, and their data may be discarded if not needed by the
+implementation.
+
+There are no additional required properties, but the following
+property MAY be included in the packet:
+
+.in 9
+.ti 6
+content-type -- A valid content type descriptor (e.g. "text/plain")
+that defines the type of data encoded in the packet data field.
+.in 3
+
+.bp
+.ti 0
+4. Required Layouts.
+
+The layout for keyrings that contain trusted certificates (ring
+usage bit 2) is as follows:
+
+.nf
+.in 6
+(GKR_TYPE_PBMAC
+  (GKR_TYPE_COMPRESSED
+    (... zero or more certificates and public keys.)
+  )
+)
+.fi
+.in 3
+
+The layout for keyrings that contain private keys and personal
+public credentials (ring usage bits 0 and 1) is as follows:
+
+.nf
+.in 6
+(GKR_TYPE_PBMAC
+  (GKR_TYPE_COMPRESSED
+    (... zero or more private keys, public keys, or certificate
+     chains.)
+  )
+)
+.fi
+.in 3
+
+Furthermore, entries of type `GKR_TYPE_PRIVATE_KEY' must be encoded
+as follows:
+
+.nf
+.in 6
+(GKR_TYPE_PBMAC
+  (GKR_TYPE_PBE
+    (GKR_TYPE_PRIVATE_KEY)
+  )
+)
+.fi
+.in 3
+
+Above, we usually assume that the MAC and encipherment use the same
+password, but different salts. Implementations are not required to
+handle encrypted and MAC'd packets with different passwords or keys, but
+they are not forbidden.
+
+In these constructions the password-based entries may be replaced by
+their raw-key variants.
+
+.ti 0
+4.1. Read-only Layouts.
+
+Constrained clients that need to be able to read trusted certificates
+(such as, for example, a `cacerts' keyring for keeping a static set of
+certificate authority certificates), but do not necessarily need to
+read personal keyrings or add new certificates. In this case, it is
+sufficient to be able to read only keyrings with usage bit 2 set.
+
+.bp
+.ti 0
+5. GNU Raw Codec
+
+The primary encoding format of public and private keys in GNU Keyrings
+is the ``RAW'' codec used by GNU Crypto.
+
+.ti 0
+5.1. DSA
+
+DSA public keys are encoded as:
+
+.nf
+.in 6
+uint32              The value 0x47014450.
+uint8               Version, currently 1.
+bigint              p
+bigint              q
+bigint              g
+bigint              y
+.fi
+.in 3
+
+And private keys as:
+
+.nf
+.in 6
+uint32              The value 0x47014470.
+uint8               Version, currently 1.
+bigint              p
+bigint              q
+bigint              g
+bigint              x
+.fi
+.in 3
+
+.ti 0
+5.2. RSA
+
+RSA public keys are encoded as:
+
+.nf
+.in 6
+uint32              The value 0x47015250.
+uint8               Version, currently 1.
+bigint              Modulus.
+bigint              Public exponent.
+.fi
+.in 3
+
+And private keys as:
+
+.nf
+.in 6
+uint32              The value 0x47015270.
+uint8               Version, currently 1.
+bigint              The prime p.
+bigint              The prime q.
+bigint              The public exponent e.
+bigint              The private exponent d.
+.fi
+.in 3
+
+.bp
+.ti 0
+5.3. Diffie-Hellman
+
+Diffie-Hellman public keys are encoded as:
+
+.nf
+.in 6
+uint32              The value 0x47014850.
+uint8               Version, currently 1.
+bigint              The prime modulus p.
+bigint              The generator g.
+bigint              The public value y.
+.fi
+.in 3
+
+And private keys as:
+
+.nf
+.in 6
+uint32              The value 0x47014870.
+uint8               Version, currently 1.
+bigint              The prime divisor of p-1.
+bigint              The prime modulus p.
+bigint              The generator g.
+bigint              The private exponent x.
+.fi
+.in 3
+
+.bp
+.ti 0
+6. Parsing Methodology.
+
+This format has been structured such that it is almost able to be
+parsed in one-pass; the only limit on this is for private keys that
+are contained in an MAC-then-encrypted envelope, when the key
+needed to decrypt and authenticate the packet may not be
+immediately available. Keyrings that only contain trusted
+certificates do not have this restriction, and can be parsed in a
+single pass.
+
+This limitation is imposed by the API of the java.security.KeyStore
+class, where a password is supplied to load the keystore from its
+external representation, and a password is supplied to retrieve a
+private key. Applications that do not need to adhere to this API
+can, of course, obtain both required passwords and therefore parse
+personal keyrings in one pass.
+
+While the KeyStore API allows access to both trusted and personal
+credentials, the separation of these two in GNU keyrings (via the
+two REQUIRED ring usage types) obviates this; that is, one can
+access trusted credentials, or one can access personal credentials,
+but not both, at least not from the same file. There are few, if
+any, standard Java APIs that require the access of both types of
+data from a single file, so this requirement should not break any
+applications.
+
+When and if an unsupported packet is encountered, such as an
+unrecognized encoding scheme, the parser SHOULD continue to parse the
+rest of the keyring, but not decode the packet data. This goes for
+OPTIONAL envelopes described above.
+
+Packet types not defined in this document should raise a fatal error.
+
+.bp
+.ti 0
+7. Other Formats.
+
+The need for a new file format for the storage of cryptographic
+data is not immediately apparent; there are, for example, a number
+of formats already being used as ``keystores'' in Java
+environments. Common formats include the JKS (Java Key Store), PKCS
+#12, and JCEKS (Java Cryptography Extension Key Store).
+
+JKS and JCEKS are proprietary, and should be avoided in favor of
+open standards.
+
+PKCS #12 [PKCS12] is an open standard, but is rather too
+complicated and badly designed. The format is basically the BER
+(basic encoding rules) of a group of ASN.1 (abstract syntax
+notation one) structures. BER as a transport format makes little
+sense; if the data types are well-defined enough (as the ones in
+this document are) then the simple rules of reading and writing
+such as described in this document should suffice.
+
+A compelling argument against PKCS #12 is found in [DESIGN].
+
+.ti 0
+Security Concerns.
+
+As the primary goal of this format is to preserve the integrity of
+sensitive cryptographic data, the methods with which these data
+are protected must be cryptographically secure, and the way in
+which they are used in this format must not weaken or undermine the
+security of the algorithms used.
+
+The recommended encryption/MAC scheme is the ``encrypt then MAC''
+scheme, which is believed to be secure and has not shown the
+weaknesses found in alternative schemes, as [ORDER] points out.
+
+The AES, MACs based on MD5 and SHA, and KDF2 are currently accepted
+as secure, and as such we also assume that the most efficient way
+to forge or steal data from a GNU Keyring is a brute-force search
+of possible passwords, since we see no reason to believe that our
+usage of these algorithms here weakens them unduly. It is possible,
+though unlikely, that our introduction of unenciphered data before
+enciphered data in the encrypt-then-MAC structure (such as that
+defined in section 4) can weaken the MAC, we believe that there is
+no evidence that this enables an attack.
+
+It is HIGHLY RECOMMENDED that applications enforce restrictions on
+the length and content of passwords, and recommend that passwords
+be at least eight characters long and contain at least one digit and
+one non-alphanumeric character.
+
+.ti 0
+References.
+
+.in 13
+.ti 3
+[AES]     Federal Information Processing Standards (FIPS) 197:
+Specification for the Advanced Encryption Standard (AES), November
+2001. <http://csrc.nist.gov/publications/fips/fips197/fips-197.pdf> 
+
+.ti 3
+[DESIGN]  P. Gutmann, ``PFX - How Not to Design a Crypto
+Protocol/Standard''.
+<http://www.cs.auckland.ac.nz/~pgut001/pubs/pfx.html>
+
+.ti 3
+[ORDER]   H. Krawczyk, ``The order of encryption and authentication for
+protecting communications (Or: how secure is SSL?)'', June
+2001. <http://eprint.iacr.org/2001/045/>
+
+.ti 3
+[PKCS8]   RSA Laboratories, PKCS #8: Private-Key Information Syntax
+Standard, Version 1.2. November 1993.
+<ftp://ftp.rsasecurity.com/pub/pkcs/ascii/pkcs-8.asc>  
+
+.ti 3
+[PKCS12]  RSA Laboratories, PKCS #12: Personal Information Exchange
+Syntax, June 1999.
+<ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-12/pkcs-12v1.pdf>
+
+.ti 3
+[RFC1321] R. Rivest, RFC 1321: The MD5 Message-Digest Algorithm, April
+1992. <http://www.ietf.org/rfc/rfc1321.txt>
+
+.ti 3
+[RFC1951] P. Deutsch, RFC 1951: DEFLATE Compressed Data Format
+Specification version 1.3, May 1996.
+<http://www.ietf.org/rfc/rfc1951.txt>
+
+.ti 3
+[RFC2104] H. Krawczyk, M. Bellare and R. Canetti, RFC 2104:
+Keyed-Hashing for Message Authentication, February 1997.
+<http://www.ietf.org/rfc/rfc2104.txt>
+
+.ti 3
+[RFC2119] S. Bradner, RFC 2119: Key words for use in RFCs to Indicate
+Requirement Levels, March 1997. <http://www.ietf.org/rfc/rfc2119.txt>
+
+.ti 3
+[RFC2315] B. Kaliski, RFC 2315: PKCS #7: Cryptographic Message Syntax,
+Version 1.5. March 1998. <http://www.ietf.org/rfc/rfc2315.txt>
+
+.ti 3
+[RFC2898] B. Kaliski, RFC 2898: PKCS #5: Password-Based Cryptography
+Specification, Version 2.0. September 2000.
+<http://www.ietf.org/rfc/rfc2898.txt>
+
+.bp
+.ti 3
+[RFC3174] D. Eastlake 3rd and P. Jones, RFC 3174: US Secure Hash
+Algorithm 1 (SHA1), September 2001.
+<http://www.ietf.org/rfc/rfc3174.txt>
+
+.ti 3
+[RFC3280] W. Ford, R. Housley, W. Polk and D. Solo. RFC 3280: Internet
+X.509 Public Key Infrastructure Certificate and Certificate
+Revocation List (CRL) Profile. April 2002.
+<http://www.ietf.org/rfc/rfc3280.txt>
+
+.in 3
+.ti 0
+Authors' Addresses
+
+.nf
+Casey Marshall
+email: rsdio@metastatic.org
+.fi
+
+.bp
+.ti 0
+Full Copyright Statement.
+
+Copyright (C) 2003 Casey Marshall.
+
+Verbatim copying and distribution of this entire document is
+permitted in any medium, provided that this notice is preserved.
+
+
+GNU Crypto copyright (C) 2001,2002,2003  The Free Software
+Foundation, Inc.
+
+GNU Crypto is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published
+by the Free Software Foundation; either version 2, or (at your
+option) any later version.
+
+GNU Crypto is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; see the file COPYING.  If not, write to
+the
+
+.nf
+.in 6
+Free Software Foundation Inc.,
+59 Temple Place - Suite 330,
+Boston, MA 02111-1307
+USA
+.fi
+.in 3
+
+Linking this library statically or dynamically with other modules
+is making a combined work based on this library.  Thus, the terms
+and conditions of the GNU General Public License cover the whole
+combination.
+
+As a special exception, the copyright holders of this library give
+you permission to link this library with independent modules to
+produce an executable, regardless of the license terms of these
+independent modules, and to copy and distribute the resulting
+executable under terms of your choice, provided that you also meet
+for each linked independent module, the terms and conditions of the
+license of that module.  An independent module is a module which is
+not derived from or based on this library.  If you modify this
+library, you may extend this exception to your version of the
+library, but you are not obligated to do so.  If you do not wish to
+do so, delete this exception statement from your version.

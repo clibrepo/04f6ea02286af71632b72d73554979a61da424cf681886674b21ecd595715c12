@@ -1,0 +1,274 @@
+@node Signatures, Random Numbers, Keypairs and Key Agreements, Top
+@chapter Signatures
+@cindex signatures
+@cindex @code{gnu.crypto.sig} package
+
+@menu
+* The ISignature Interface::          The base signature interface.
+* The SignatureFactory Class::        Creating signature instances.
+* The ISignatureCodec Interface::     Storing signatures.
+* Signature Example::                 Programming example.
+@end menu
+
+This chapter describes the digital signature schemes implemented in GNU
+Crypto. The package for all signature and related classes is
+@code{gnu.crypto.sig}. The following signature schemes are implemented:
+
+@itemize @bullet
+@cindex DSS signature
+@cindex Digital Signature Standard
+
+@item
+@b{DSS}, the Digital Signature Standard, was standardized in 1994 by the
+National Institute of Standards and Technology in the Federal
+Information Processing Standards (FIPS) Publication 186 [FIPS186]. DSS
+uses the secure hash algorithm (SHA-1) internally, and produces a 160
+bit signature.
+
+@cindex RSA-PSS signature
+@cindex Rivest, Ron
+@cindex Shamir, Adi
+@cindex Adleman, Leonard
+@cindex Bellare, Mihir
+@cindex Rogaway, Phillip
+
+@item
+@b{RSA-PSS}. This is a digital signature scheme based on the combination
+of the RSA algorithm with the Probabilistic Signature Scheme (PSS)
+encoding scheme. RSA was invented by Ron Rivest, Adi Shamir, and Leonard
+Adleman; the PSS encoding was developed by Mihir Bellare and Phillip
+Rogaway. During efforts to adopt RSA-PSS into the IEEE P1363a standards
+effort, certain adaptations to the original version of RSA-PSS were made
+by Mihir Bellare and Phillip Rogaway and also by Burt Kaliski (the
+editor of IEEE P1363a) to facilitate implementation and integration into
+existing protocols. [JoK00]
+@end itemize
+
+@c ----------------------------------------------------------------------
+
+@node The ISignature Interface, The SignatureFactory Class, Signatures, Signatures
+@section The ISignature Interface
+
+@fgindex Signature class diagram
+@iftex
+  @image{diagrams/sig_class_diag, 307pt, 311pt}
+  @nobreak
+  @center @i{Figure 14: Signature class diagram}
+@end iftex
+@ifnottex
+  @image{diagrams/sig_class_diag}
+  @center @i{Figure 14: Signature class diagram}
+@end ifnottex
+
+All digital signature schemes implement the @code{ISignature} interface,
+and support the following methods:
+
+@cindex @b{SIGNER_KEY} variable (@code{ISignature})
+
+@deftypevar java.lang.String SIGNER_KEY
+A property name in the attributes map that is passed to instances being
+prepared for signing. The value mapped by this key must be a
+@code{java.security.PrivateKey} that is appropriate for the instance's
+algorithm (e.g. an instance of DSS would require a subclass of
+@code{java.security.interfaces.DSAPrivateKey}).
+@end deftypevar
+
+@cindex @b{VERIFIER_KEY} variable (@code{ISignature})
+
+@deftypevar java.lang.String VERIFIER_KEY
+A property name in the attributes map that is passed to instances being
+prepared for verifying a signature. The value mapped by this key must be
+a @code{java.security.PublicKey} that is appropriate for the instance's
+algorithm, just as is the case with the signing key.
+@end deftypevar
+
+@cindex @b{SOURCE_OF_RANDOMNESS} variable (@code{ISignature})
+
+@deftypevar java.lang.String SOURCE_OF_RANDOMNESS
+A property name in the attributes map that is passed to instances being
+prepared for use as either signers or verifiers. The value mapped must
+be an already-initialized instance of @code{gnu.crypto.prng.IRandom}.
+@end deftypevar
+
+@cindex @b{setupSign} function (@code{ISignature})
+
+@deftypefun void setupSign (java.util.Map @var{attributes}) throws java.lang.IllegalArgumentException
+Initializes this instance for signing. The @var{attributes} parameter
+must be a @code{java.util.Map} that has, at least, a mapping between the
+@code{SIGNER_KEY} property and the appropriate private key.
+@end deftypefun
+
+@cindex @b{setupVerify} function (@code{ISignature})
+
+@deftypefun void setupVerify (java.util.Map @var{attributes}) throws java.lang.IllegalArgumentException
+Initializes this instance for verifying a signature. The
+@var{attributes} parameter must be a @code{java.util.Map} that has, at
+least, a mapping between the @code{VERIFIER_KEY} property and the
+appropriate public key.
+@end deftypefun
+
+@cindex @b{update} function (@code{ISignature})
+
+@deftypefun void update (byte @var{b}) throws java.lang.IllegalStateException
+Update either the signing or verifying operation with the next byte in
+the message. This method will throw a @code{java.lang.IllegalStateException} if
+this instance has not been initialized for either signing or verifying.
+@end deftypefun
+
+@deftypefun void update (byte[] @var{buf}, int @var{off}, int @var{len}) throws java.lang.IllegalStateException
+Update either the signing or verifying operation with the next @var{len}
+bytes of @var{buf}, starting at @var{offset}. This method will throw a
+@code{java.lang.IllegalStateException} if this instance has not been
+initialized for either signing or verifying.
+@end deftypefun
+
+@cindex @b{sign} function (@code{ISignature})
+
+@deftypefun java.lang.Object sign () throws java.lang.IllegalStateException
+Finishes a signing operation and returns the final signature. This method
+will throw a @code{java.lang.IllegalStateException} if this instance has not
+been initialized for signing.
+@end deftypefun
+
+@cindex @b{verify} function (@code{ISignature})
+
+@deftypefun boolean verify (java.lang.Object @var{signature}) throws java.lang.IllegalStateException
+Finishes a verifying operation by checking if the argument, a native signature
+object, matches the expected signature. This methods returns @code{true} if
+the signature is valid, @code{false} otherwise. This method will throw a
+@code{java.lang.IllegalStateException} if this instance has not been
+initialized for verifying.
+@end deftypefun
+
+@cindex @b{name} function (@code{ISignature})
+
+@deftypefun java.lang.String name ()
+Returns the canonical name of this instance's signature algorithm.
+@end deftypefun
+
+@cindex @b{clone} function (@code{ISignature})
+
+@deftypefun java.lang.Object clone ()
+Returns a copy of this signature object.
+@end deftypefun
+
+@c ----------------------------------------------------------------------
+
+@node The SignatureFactory Class, The ISignatureCodec Interface, The ISignature Interface, Signatures
+@section The SignatureFactory Class
+
+Instances of @code{ISignature} can be retrieved with the class
+methods of the @code{SignatureFactory} class:
+
+@cindex @b{getInstance} function (@code{SignatureFactory})
+
+@deftypefun ISignature getInstance (java.lang.String @var{name})
+Creates an instance of the signature scheme for @var{name}, or
+@code{null} if there is no such algorithm.
+@end deftypefun
+
+@cindex @b{getNames} function (@code{SignatureFactory})
+
+@deftypefun java.util.Set getNames ()
+Returns a set of the names (@code{java.lang.String}) of all available
+signature schemes.
+@end deftypefun
+
+@c ----------------------------------------------------------------------
+
+@node The ISignatureCodec Interface, Signature Example, The SignatureFactory Class, Signatures
+@section The ISignatureCodec Interface
+
+@cindex ISignatureCodec interface
+
+The @code{ISignatureCodec} interface defines methods for externalizing
+and de-externalizing native signature results, as would be returned by
+the @code{ISignature.sign()} method, or passed to
+@code{ISignature.verify()} method. The only format currently supported
+is the ``RAW'' codec, which is specific to GNU Crypto.
+
+Each signature scheme implements its own raw codec. There is no
+factory for codecs, but rather you should create instances of
+
+@itemize @bullet
+@item
+@code{gnu.crypto.sig.dss.DSSSignatureRawCodec} if you are reading or
+writing DSS signatures, or
+
+@item
+@code{gnu.crypto.sig.rsa.RSAPSSSignatureRawCodec} if you are reading
+or writing RSA-PSS signatures.
+@end itemize
+
+Each of these classes has a zero-argument constructor, needs no
+initialization, and defines these methods:
+
+@cindex @b{decodeSignature} function (@code{ISignatureCodec})
+
+@deftypefun java.lang.Object decodeSignature (byte[] @var{encoded})
+Decodes a signature from the byte represention @var{encoded}, and
+returns the signature in the signature algorithm's native
+form. Implementations may throw an unchecked exception (such as
+@code{java.lang.IlligalArgumentException}) if the argument
+is improperly formatted.
+@end deftypefun
+
+@cindex @b{encodeSignature} function (@code{ISignatureCodec})
+
+@deftypefun byte[] encodeSignature (java.lang.Object @var{signature})
+Encodes a native signature to an external byte representation.
+Implementations may throw an unchecked exception (such as
+@code{java.lang.IlligalArgumentException}) if the argument
+is not of the algorithm's native signature type.
+@end deftypefun
+
+@cindex @b{getFormatID} function (@code{ISignatureCodec})
+
+@deftypefun int getFormatID ()
+Returns the format identifier for this codec, such as
+@code{RAW_FORMAT}.
+@end deftypefun
+
+@cindex @b{RAW_FORMAT} variable (@code{ISignatureCodec})
+
+@deftypevar int RAW_FORMAT
+Format identifier for GNU's ``raw'' codec.
+@end deftypevar
+
+@c ----------------------------------------------------------------------
+
+@node Signature Example, , The ISignatureCodec Interface, Signatures
+@section Signature Example
+
+@example
+ISignature dss = SignatureFactory.getInstance("DSS");
+Map attrib = new HashMap();
+attrib.put(ISignature.SIGNER_KEY, privateDsaKey);
+dss.setupSign(attrib);
+
+dss.update(message, 0, message.length);
+Object sig = dss.sign();
+
+ISignatureCodec codec = new DSSSignatureRawCodec();
+byte[] encoded = codec.encodeSignature(sig);
+
+Object sig2 = codec.decodeSignature(encoded);
+
+attrib.clear();
+attrib.put(ISignature.VERIFIER_KEY, publicDsaKey);
+dss.setupVerify(attrib);
+
+dss.update(message, 0, message.length);
+boolean valid = dss.verify(sig);
+@end example
+
+@fgindex Signature sequence diagram
+@iftex
+  @image{diagrams/sign_verify_seq_diag, 323pt, 179pt}
+  @center @i{Figure 15: Signature sequence diagram}
+@end iftex
+@ifnottex
+  @image{diagrams/sign_verify_seq_diag}
+  @center @i{Figure 15: Signature sequence diagram}
+@end ifnottex
+

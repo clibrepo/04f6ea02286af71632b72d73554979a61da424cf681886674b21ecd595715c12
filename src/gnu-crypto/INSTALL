@@ -1,0 +1,196 @@
+GNU Crypto build instructions
+=============================
+
+To build this library you need at least a Java bytecode compiler.  To
+test it you need, in addition, a Java bytecode interpreter.  The
+following sections detail this process.
+
+
+1. Build with Jakarta ANT
+-------------------------
+
+ANT is a pure java build tool which can be found at
+<http://jakarta.apache.org/ant/>.  To find out about the availabe
+targets of the build file supplied with this library, enter the
+following on your console, assuming you have a working ANT
+environment:
+
+   $ ant -projecthelp
+
+If you have ANT version 1.5.1 or later, you should see something like
+the following if you enter the above command:
+
+Buildfile: build.xml
+Main targets:
+
+ clean      Remove object files
+ distclean  Remove all generated files including deliverables
+ docs       Generate programmer's documentation in Javadoc HTML format
+ ent        Test randomness of PRNG algorithms
+ init       Create temporary directories for a build
+ jar        Build the project's main .jar file
+ kat        Output NIST-compliant KAT vectors
+ mct        Output NIST-compliant MCT vectors
+ nessie     Output NESSIE-compliant test vectors
+ release    Package the library's Software and generated Test Vectors
+ speed      Exercise hash and block ciphers to measure performance
+ test       Run built-in tests to ensure correctness of .jar file
+ tv         Output NIST and NESSIE compliant test vectors
+
+Default target: jar
+
+
+2. Building with GNU tools
+--------------------------
+
+The alternative to Ant is GNU's build system, using the supplied
+configure script and GNU make. Building with this method in the
+toplevel directory is not recommended, instead use the following
+procedure, by first choosing a directory `BUILDDIR':
+
+   $ mkdir ${BUILDDIR}
+   $ cd ${BUILDDIR}
+
+   $ ${SRCDIR}/init.sh
+   $ ./configure
+
+   $ make
+   # make install
+
+`SRCDIR' is the directory unpacked from the distribution.
+
+The Jar files will be placed in `${prefix}/share'.
+
+
+2.1. Configuring with `configure'
+---------------------------------
+
+The configure script takes a variety of parameters that can be used to
+customize the build. In addition to the default command-line arguments
+accepted by `configure', the following arguments are available:
+
+   --with-jce=[ARG]
+
+      When specified, the clean-room JCE classes (javax.crypto.*) will
+      be built along with the other classes. The default value is
+      `yes', meaning the JCE will be built if you do not explicitly
+      say `no' to this option.
+
+   --with-jce-jar=[PATH]
+
+      Use this to specify an existing Jar file containing the JCE
+      classes (javax.crypto.*). This option is only used if you
+      specify `--with-jce=no'. If you do not specify this option and
+      do not specify `--with-jce=yes', then classes that require JCE
+      classes will not be built.
+
+   --with-sasl=[ARG]
+
+      When specified, the SASL extension classes (javax.security.*)
+      will be built. The default value is `yes', meaning the SASL
+      classes will be built if you do not explicitly say `no' to this
+      option.
+
+   --with-tmpdir=[PATH]
+
+      Specify location to store temporary data. The default is `/tmp'.
+
+In addition to the command-line switches, some configuration
+parameters are available via environment variables. To specify one of
+these variables, you can do so on the shell:
+
+   $ export NAME=value
+   $ ./configure
+
+As an argument to the `configure' script:
+
+   $ ./configure NAME=value
+
+Or at build time, as an argument to `make':
+
+   $ make NAME=value
+
+The following variables are available:
+
+   JAVAC
+
+      The java bytecode compiler. This can be the full path to the
+      executable, or just the name of the program if it is in your
+      PATH.
+
+      For example, `JAVAC=jikes' will use the jikes compiler.
+
+   JAVACFLAGS
+
+      Extra flags to pass to the compiler when compiling to bytecode.
+
+      For example, `JAVACFLAGS=-O'.
+
+   JAVA
+
+      The java virtual machine. This can be the full path to the
+      executable, or just the name of the program if it is in your
+      PATH. This variable is only used when checking the library with
+      `make check'.
+
+      For example, `JAVA=kaffe' will use the Kaffe VM.
+
+   JAVAFLAGS
+
+      Extra flags to pass to the virtual machine.
+
+      For example, `JAVAFLAGS=-Xbootclasspath/p:/foo/bar'.
+
+   CLASSPATH
+
+      The class path to Jar files and directories to search for class
+      files when compiling and testing the library.
+
+      For example, `CLASSPATH=${JAVA_HOME}/lib/rt.jar'.
+
+   JAR
+
+      The java archiver.  This can be the full path to the
+      executable, or just the name of the program if it is in your
+      PATH.
+
+Then, to compile and install the library:
+
+   $ make
+   # make install
+
+This library can also be compiled to a native shared library with
+gcj. For instructions on how to do this, see the directory `gcj' in
+this distribution.
+
+
+2.2. Conformance tests
+----------------------
+
+   $ make check
+
+This will run a number of tests on all the algorithms in this library;
+this step can take a while, and can be omitted.
+
+
+3. Generation of algorithm test vectors
+---------------------------------------
+
+   $ make test-vectors
+
+The generated test vectors will be written to the './tv' directory.
+
+
+4. Tools
+--------
+
+GNU Crypto contains some basic tools for measuring the performance of
+the algorithm implementations:
+
+   $ make speed
+
+Finally, the library contains a simple tool to qualify the output of the
+pseudo-random number generators available in the distribution:
+
+   $ make ent
+

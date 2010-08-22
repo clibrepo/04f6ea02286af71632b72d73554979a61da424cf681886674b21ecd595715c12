@@ -1,0 +1,187 @@
+Version 2.0.1:
+	+ Test for bad parameters in SRP added.
+	+ Minor bugfix to keyring.
+
+Version 2.0.0:
+   + added a spec file (under etc/) for building RPMs.
+   + added RSA blinding.
+   + added a new key agreement protocol SRP-TLS to support SRP6 in TLS.
+   + added RSA encryption/decryption and EME-PKCS1-v1.5 encoding.
+   + added support for SHA-2 algorithms to RSA PKCS#1 v1.5 scheme.
+   + moved the check for DES weak keys to the top of makeKey() method.
+   + added DES possible weak keys to the list of DES vulnerable keys.
+   + set the default library-wide property CHECK_WEAK_KEYS to true.
+   + added GNU Keyring implementation and documentation.
+   + added PBKDF2 from PKCS #5 v.2 as a PRNG.
+   + updated Makefile.am, configure.ac, acinclude.m4 to add more
+     build flexibility.
+   + removed Util.areEqual() method and replaced with Arrays.equal.
+   + moved keypair generation code to new subpackage: gnu.crypto.key.
+   + added key agreement protocol API and implementation for: Diffie-
+     Hellman, ElGamal, SRP-6 and SASL-SRP.
+   + added a new signature scheme: RSA with PKCS1 v1.5.
+   + added a Properties class under gnu.crypto where library-wide
+     properties can be set and checked.  three properties are currently
+     used: REPRODUCIBLE_PRNG, CHECK_WEAK_KEYS, and DO_MILLER_RABIN by
+     default set to false.
+   + added code in DES to cater for CHECK_WEAK_KEYS.
+   + added code in PRNG to cater for REPRODUCIBLE_PRNG.
+   + added code in Primes to cater for DO_MILLER_RABIN.
+   + updated the README and removed the section about configuring the
+     library.
+   + incorporated Edward Kmett SHA2 contribution classes.  still need
+     to cater for them in SASL-SRP implementation.
+   + updated the SASL-SRP to align with upcoming version of the draft.
+   + updated the texinfo documentation.  still need to update the figures.
+   + updated the AUTHORS and THANKS documents.
+   + added implementation of CAST5 and HAVAL.
+   + fixed code to reflect that SRP mechanism has only one name.
+   + added support for session re-use to SRP.
+   + Added manual texinfos and supporting files.
+   + Moved property constants from gnu.crypto.sig.BaseSignature to
+     gnu.crypto.sig.ISignature.
+   + fixed a bug in the jar target in make files (under source trees).
+   + retired the SM2 SASL mechanism implementation and removed all
+     dependencies.
+   + moved generation of configured compiler options to acinclude.m4.
+   + added gnu.crypto.sasl hierarchy to implement various SASL mechanisms.
+   + separated library version number of gnu-crypto (currently at 2:0)
+     from javax-crypto and javax-security --both at 1:0.
+   + added implementation of both javax.security.sasl (JSR 38) and
+     javax.security.auth.callback extensions in a new 'security' tree.
+     these two extensions get packaged in a separate javax-security shared
+     library --and jar.
+   + Added Tiger hash.
+   + added new 'assembly' sub-package which contains high-level crypto
+     primitives such as Cascades and Assemblies.
+   + removed the SVUID from javax.crypto.interfaces.PBEKey, so it can
+     inherit the value from java.security.Key.
+   + updated javax.crypto.SealedObject to use same serial version UID
+     as JDK 1.4.
+   + updated the documentation of javax.crypto.interfaces.PBEKey to
+     reflect JDK 1.4's semantics.  use std. GNU Crypto copyright text.
+   + added new class javax.crypto.ExemptionMechanismSpi.
+   * added missing methods to PBESpec (in javax.crypto.spec),
+     Cipher, ExemptionMechanism, KeyAGreement, KeyGenerator, Mac,
+     SealedObject, SecretKeyFactory (in javax.crypto).
+   + renamed the private getImplementation() in javax.crypto.JCEUtil
+     to getImplementationFromProvider and made it package-private.
+   + added javax.crypto.interfaces.PBEKey and
+     javax.crypto.MechanismExemptionSpi to Makefile.am files.
+
+Version 1.1.0:
+   + added a new test case to check correctness of clone() and reset()
+     for all HMAC implementations.
+   + added 2 test cases for HMAC-MD5 and HMAC-SHA1.
+   + fixed the reset() method in HMac. was not re-using inner pad bytes.
+   + fixed the implementation of HMAC. was not implementing rfc-2104
+     correctly when B was longer than the underlying hash block size.
+   + replaced tabs with spaces in this file.
+   + the manifest of the main jar is now generated from a .in template.
+   + amended build.xml to contain all new subtrees in the deliverables.
+   + fixed a bug in build.xml related to directories where Test Vectors
+     are supposed to get generated.
+   + changed 'release' target in build.xml to 'dist.'
+   + checked in init.sh under toplevel.
+   + fixed a bug in both NistKat and NistMCT related to empty key-size.
+   + added serpent.m4 (under etc/) to the CVS repository.  we use
+     these M4 macros to generate the bulk of the code in encrypt() and
+     decrypt() methods of the GCJ-friendly version.
+   + Modified the byte packing/unpacking in Serpent (both GCJ- and
+     non GCJ-friendly versions) to operate on little-endian entities.
+   + Added "Reversed" versions of the toString and toBytesFromString
+     methods of gnu.crytpo.util.Util.
+   + Modified BaseCipherTestCase to accomodate ciphers that need
+     little-endian conversions.
+   + Modified TestOfNistVectors to do the same.
+   + Fixed some incorrect test vectors in TestOfSerpent.
+   + added support for building both GCJ-friendly and otherwise versions
+     of the library, with or without also building the JCE.  both builds
+     using the concept of building _outside_ the source tree.  once the
+     libtool issue is solved we should end up with less Makefile-related
+     files.  ant remains the only way for building a proper distribution.
+   + imported BouncyCastle implementation of the JCE and their ASN.1
+     support classes into a 'jce' subtree.
+   + DES and TripleDES ciphers added.
+   + CFB mode added, JCE CipherAdapter modified to accept block size
+     with CFB mode (e.g. 'CFB8').
+   + Make check now only gives actual failure output (if any) and a
+     summary of the test results. Add -verbose or -debug to mauveTest
+     for extra output.
+   + added Mauve test classes and support for building when making a
+     GCJ-friendly version of the library.
+   + ARCFOUR PRNG, test cases, JCE cipher and secure random
+     wrappers added.
+   + CBC mode and test case added.
+   + modified the (GNU) build process to cater for (a) the fact that
+     some source files get generated depending on the desired config,
+     (b) there are now for some algorithms, GCJ-friendly version v/s
+     the java (bytecode interpreter) one, and (c) the copyright of some
+     scripts were not assigned to the FSF, and hence could not be kept.
+   + restructuring and completion of the JCE adapter classes.
+   + fixed the valueOf() methods in both the DSS and RSA key classes.
+   + made all uses of 4-byte magic data (in keys as well as signatures)
+     use literal values from the Registry.
+   + added 2 new tests in both TestOfDSSCodec and TestOfRSACodec to test
+     the valueOf() method implementations.
+   + added Gisle Selensminde to the THANKS file.
+   + use the new license text.
+   + updated the ChangeLog.
+   + added missing files needed by quick make (no auto* magic):
+     aclocal.m4, config.log, config.status, configure, install-sh, Makefile,
+     Makefile.in, missing, and mkinstalldirs.
+   + in Makefile.am (toplevel) added SerpentBitSlice to the sources.
+   + also added new targets: speed and ent to align with ANT.
+   + finally, changed the "clean" target and added a "cleanall" target
+     to align with gcj/make.
+   + added Werner Koch and Dag Arne Osvik to the THANKS file.
+   + re-generated the aclocal.m4 and configure files in gcj/.
+   + in gcj/admin.sh removed the hard-wired reference to autoconf2.50.
+   + in same file added the removal of autom4te-2.53.cache if it's there.
+   + use AC_INIT() macro with 3 arguments in gcj/configure.in.
+   + set /usr/local/gnu-crypto as the default prefix in gcj/configure.in.
+   + removed references to classpathx-crypto in gcj/INSTALL.
+   + removed references to failing tests which now pass in gcj/INSTALL.
+   + use gnu-crypto in the examples in gcj/INSTALL to align with other
+     documentation pages.
+   + reflect the default prefix path (see configure.in logs).
+   + added documentation in gcj/INSTALL on how to use new targets.
+   + added two new targets to gcj/Makefile.am: speed and ent to align
+     with the other make and ANT alternatives.
+   + generated the corresponding gcj/Makefile.in.
+   + added SerpentBitSlice and MD2Spi to the list of sources in
+     gcj/source/Makefile.am.
+   + generated the corresponding (gcj/source/) Makefile.in file.
+   + removed author's attribution from MD2 source. it's already in AUTHORS.
+   + removed non-ascii characters from MD2 source.
+   + added support for instantiating SerpentBitSlice in CipherFactory.
+   + added "serpent-bitslice" as the canonical name of the bit-slice
+     implementation of Serpent in the Registry.
+   + added a temporary version of Serpent (bit-slice implementation) that
+     seems most suited for use with GCJ.  Dag Arne to coordinate the final
+     incarnation.
+   + changed the HashSet to ArrayList in Serpent.keySizes() to return an
+     ascending ordered list of numerics.
+   + removed non ascii characters in Serpent source.
+   + added new targets to the Makefile.am: cleanall (to match the same in
+     gcj/ folder), speed and ent.
+   + amended the Makefile.am "clean" target to be used by maintainers
+     before committing toplevel.
+   + updated the INSTALL file to reflect the quick&easy way to build with
+     GNU make from toplevel directory.
+   + separated the build instructions fro the README into INSTALL at the
+     toplevel directory.
+   + include the intermediary GNU build toolchain files, so users can
+     "configure" and "make" without needing to invoke the auto* magic.
+   + use auto* tools to build the project.  gcj/admin.sh is still the way
+     to build the shared library.
+   + added new sections to the README about the build process.
+   + updated the links (web page and mailing list) in build.xml and
+     Makefile.in to the new project's home.
+   + use JUnit 3.8.1 instead of 3.7.
+   + new partially-unrolled version of gnu.crypto.cipher.Serpent.
+   + changed Serpent's default key size to 128-bit.
+   + new algorithms: MD2 hash and Blowfish cipher.
+
+Version 1.0.0:
+   + first public release.

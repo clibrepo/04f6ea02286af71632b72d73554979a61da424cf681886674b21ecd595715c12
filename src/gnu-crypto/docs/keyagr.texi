@@ -1,0 +1,209 @@
+@node Key Agreements, Protocols, Keypairs, Keypairs and Key Agreements
+@section Key Agreements
+@cindex Protocols
+@cindex The IKeyAgreementParty Interface
+@cindex The KeyAgreementFactory class
+
+@menu
+* Protocols::                         What this library provides.
+* The IKeyAgreementParty Interface::  The basic key agreement protocol.
+* The KeyAgreementFactory class::     The key agreement Factory class.
+* Key Agreement Example::             A practical example.
+@end menu
+
+@c --------------------------------------------------------------------
+
+@node Protocols, The IKeyAgreementParty Interface, Key Agreements, Key Agreements
+@section Protocols
+
+A key agreement protocol is a means by which two parties engage in an
+exchange of incoming/outgoing messages, at the end of which, both
+participants would share a common secret.  Such a shared secret can then
+be used to provide different security services such as replay detection,
+integrity protection, and confidentiality protection.
+
+@fgindex Key agreement class diagram
+@iftex
+  @image{diagrams/ka_class_diag, 374pt, 221pt}
+  @nobreak
+  @center @i{Figure 12: Key agreement class diagram}
+@end iftex
+@ifnottex
+  @image{diagrams/ka_class_diag}
+  @center @i{Figure 12: Key agreement class diagram}
+@end ifnottex
+
+Four key agreement protocols are implemented in this library. They are:
+
+@itemize @bullet
+@cindex Diffie-Hellman, key agreement
+@cindex RFC-2631, Static-Static Mode
+
+@item
+Diffie-Hellman @b{basic version}, also known as the @b{Static-Static Mode}
+in RFC-2631. [RFC2631]
+
+@cindex ElGamal, key agreement
+@cindex RFC-2631, Ephemeral-Static Mode
+
+@item
+ElGamal version, knwon as @b{half-certified} Diffie-Hellman key agreement,
+as well as @b{Ephemeral-Static Mode} in RFC-2631. [RFC2631]
+
+@cindex SRP-6, key agreement
+
+@item
+Secure Remote Password protocol known as SRP-6. [Wu02]
+
+@cindex SASL-SRP, key agreement
+@cindex SRP-6, SASL
+
+@item
+The version of SRP-6 as used in the SASL-SRP proposed mechanism.
+@end itemize
+
+The following sequence diagram shows a possible use of the key agreement
+API classes to negotiate a Diffie-Hellman protocol:
+
+@fgindex Key agreement sequence diagram
+@iftex
+  @image{diagrams/ka_seq_diag, 404pt, 185pt}
+  @nobreak
+  @center @i{Figure 13: Key agreement sequence diagram}
+@end iftex
+@ifnottex
+  @image{diagrams/ka_seq_diag}
+  @center @i{Figure 13: Key agreement sequence diagram}
+@end ifnottex
+
+
+@c --------------------------------------------------------------------
+
+@node The IKeyAgreementParty Interface, The KeyAgreementFactory class, Protocols, Key Agreements
+@section The IKeyAgreementParty Interface
+@cindex @code{gnu.crypto.key.IKeyAgreementParty} class
+
+@cindex @b{name} function (@code{IKeyAgreementParty})
+
+@deftypefun java.lang.String name ()
+Returns the canonical name of the key agreement protocol.
+@end deftypefun
+
+@cindex @b{init} function (@code{IKeyAgreementParty})
+
+@deftypefun void init (java.util.Map @var{attributes}) throws gnu.crypto.key.KeyAgreementException
+Initializes this instance. The @var{attributes} parameter must be a
+@code{java.util.Map} that has the required name-value pairs needed for
+this instance. An instance of @code{gnu.crypto.key.KeyAgreementException}
+is thrown if an exception occurs during this process.
+@end deftypefun
+
+@cindex @b{processMessage} function (@code{IKeyAgreementParty})
+
+@deftypefun gnu.crypto.key.OutgoingMessage processMessage (gnu.crypto.key.IncomingMessage @var{in}) throws gnu.crypto.key.KeyAgreementException
+Processes an incoming message (@var{in}) at one end, generating a
+message (the returned object which may be null) that will be processed
+by the other party(ies). A @code{gnu.crypto.key.KeyAgreementException}
+may be thrown if an exception occurs during this process.
+@end deftypefun
+
+@cindex @b{isComplete} function (@code{IKeyAgreementParty})
+
+@deftypefun boolean isComplete ()
+Returns @code{true} if the party in the key agreement protocol
+exchange has completed its part of the exchange; and @code{false}
+otherwise. If this method returns @code{false}, then an
+@code{java.lang.IllegalStateException} is thrown for any method
+invocation except @code{init}.
+@end deftypefun
+
+@cindex @b{getSharedSecret} function (@code{IKeyAgreementParty})
+
+@deftypefun byte[] getSharedSecret () throws gnu.crypto.key.KeyAgreementException
+Returns the byte array containing the shared secret as generated
+by this party. A @code{gnu.crypto.key.KeyAgreementException} is
+thrown if the key agreement is not yet initialised, or is initialised
+but the exchange is still in progress.
+@end deftypefun
+
+@cindex @b{reset} function (@code{IKeyAgreementParty})
+
+@deftypefun void reset ()
+Resets this instance for re-use with another set of attributes.
+@end deftypefun
+
+@c --------------------------------------------------------------------
+
+@node The KeyAgreementFactory class, Key Agreement Example, The IKeyAgreementParty Interface, Key Agreements
+@section The KeyAgreementFactory class
+@cindex @code{gnu.crypto.key.KeyAgreementFactory} class
+
+Instances for two-party key agreement protocols can be instantiated
+with the @i{Factory} methods of this class:
+
+@cindex @b{getPartyAInstance} function (@code{KeyAgreementFactory})
+
+@deftypefun gnu.crypto.key.IKeyAgreementParty getPartyAInstance (java.lang.String @var{name})
+Creates an instance of an @i{initiator} of a key agreement protocol
+given the @var{name} of this protocol. A @code{null} if there is no
+such protocol implementation.
+@end deftypefun
+
+@cindex @b{getPartyBInstance} function (@code{KeyAgreementFactory})
+
+@deftypefun gnu.crypto.key.IKeyAgreementParty getPartyBInstance (java.lang.String @var{name})
+Creates an instance of a @i{recipient} of a key agreement protocol
+given the @var{name} of this protocol. A @code{null} if there is no
+such protocol implementation.
+@end deftypefun
+
+@cindex @b{getNames} function (@code{KeyAgreementFactory})
+
+@deftypefun java.util.Set getNames ()
+Returns a set of the names (@code{java.lang.String}) of all available
+key agreement protocols.
+@end deftypefun
+
+@c --------------------------------------------------------------------
+
+@node Key Agreement Example, , The KeyAgreementFactory class, Key Agreements
+@section Example, Key agreement
+
+@cindex example, Key Agreement
+
+The following example shows ...
+
+@sp 1
+
+@example
+IKeyPairGenerator kpg =
+    KeyPairGeneratorFactory.getInstance(Registry.DH_KPG);
+kpg.setup(new HashMap()); // use default values
+KeyPair kpA = kpg.generate();
+KeyPair kpB = kpg.generate();
+IKeyAgreementParty A = new DiffieHellmanSender();
+IKeyAgreementParty B = new DiffieHellmanReceiver();
+
+Map mapA = new HashMap();
+mapA.put(DiffieHellmanKeyAgreement.KA_DIFFIE_HELLMAN_OWNER_PRIVATE_KEY,
+         kpA.getPrivate());
+Map mapB = new HashMap();
+mapB.put(DiffieHellmanKeyAgreement.KA_DIFFIE_HELLMAN_OWNER_PRIVATE_KEY,
+         kpB.getPrivate());
+
+A.init(mapA);
+B.init(mapB);
+
+// (1) A -> B: g**x mod p
+OutgoingMessage out = A.processMessage(null);
+
+// (2) B -> A: g^^y mod p
+out = B.processMessage(new IncomingMessage(out.toByteArray()));
+
+byte[] k2 = B.getSharedSecret();
+
+// A computes the shared secret
+out = A.processMessage(new IncomingMessage(out.toByteArray()));
+
+byte[] k1 = A.getSharedSecret();
+@end example

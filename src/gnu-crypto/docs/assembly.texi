@@ -1,0 +1,483 @@
+@node Assemblies, Operation, Cascades, Cascades and Assemblies
+@section Assemblies
+@cindex Operation
+@cindex Transformer
+@cindex Assembly
+
+@menu
+* Operation::                      The Operation enumeration class.
+* Transformer::                    The Transformer abstract class.
+* Assembly::                       The Assembly class.
+* Assembly Example::               Compressing and encrypting an input stream.
+@end menu
+
+@fgindex Assembly class diagram
+@iftex
+  @image{diagrams/assembly_class_diag, 304pt, 209pt}
+  @nobreak
+  @center @i{Figure 7: Assembly class diagram}
+@end iftex
+@ifnottex
+  @image{diagrams/assembly_class_diag}
+  @center @i{Figure 7: Assembly class diagram}
+@end ifnottex
+
+@c --------------------------------------------------------------------
+
+@node Operation, Transformer, Assemblies, Assemblies
+@section Operation
+@cindex @code{gnu.crypto.assembly.Operation} class
+
+An enumeration type for specifying the mode of operation of a
+@b{Transformer} instance, when wired into an @b{Assembly}.
+
+This class cannot be instantiated; but its (only) two possible values
+can be used for constructing @b{Transformer} elements:
+
+@itemize @bullet
+@item
+@b{PRE_PROCESSING}: to mean that the input data is first processed by
+the current @b{Transformer} before being passed to the rest of the
+chain; and
+@item
+@b{POST_PROCESSING}: to mean that the input data is first passed to the
+rest of the chain, and the resulting bytes are then processed by the
+current @b{Transformer}.
+@end itemize
+
+@c --------------------------------------------------------------------
+
+@node Transformer, Assembly, Operation, Assemblies
+@section Transformer
+@cindex @code{gnu.crypto.assembly.Transformer} class
+
+A @b{Transformer} is an abstract representation of a two-way
+@i{transformation} that can be chained together with other instances of
+this type. Examples of such transformations in this library are:
+
+@itemize @bullet
+@item
+@b{CascadeTransformer} that adapts an instance of a @code{Cascade},
+@item
+@b{PaddingTransformer} that adapts an instance of
+@code{gnu.crypto.pad.IPad}, and finally
+@item
+@b{DeflateTransformer} that adapts a ZLib-based deflater/inflater
+algorithm implementation.
+@end itemize
+
+The special type @code{LoopbackTransformer} is also available and
+is implicitly (and silently) added to each instance of an @b{Assembly}.
+
+A @b{Transformer} is characterized by the followings:
+
+@itemize @bullet
+@item
+It can be chained to other instances, to form an @b{Assembly}.
+@item
+When configured in an @b{Assembly}, it can be set to apply its internal
+transformation on the input data stream before (pre-processing) or
+after (post-processing) passing the input data to the next element in
+the chain. Note that the same type @b{Transformer} can be used in
+either pre-processing, or post-processing modes.
+@item
+A special transformer --@code{LoopbackTransformer}-- is used to close
+the chain.
+@item
+A useful type of @b{Transformer} --one we're interested in-- has
+internal buffers. The distinction between a casual push (update)
+operation, and the last one, allows to correctly flush any intermediate
+bytes that may exist in those buffers.
+@end itemize
+
+To allow wiring @b{Transformer} instances together, a @i{minimal output
+size} in bytes is necessary. The trivial case of a value of @code{1}
+for such attribute practically means that no output buffering, from the
+previous element, is needed --which is independent of buffering the
+input if the @b{Transformer} implementation itself is block-based.
+
+This class exposes one class attribute and three Factory methods. They
+are:
+
+@cindex @b{DIRECTION} variable (@code{Transformer})
+@deftypevar String DIRECTION
+The name of a property in the attributes map that is passed to the
+@code{init} method, representing the transformation's desired wiring
+direction. The mapped value should be a valid @code{Direction} value.
+If this attribute is omitted, @code{Direction.FORWARD} is used.
+@end deftypevar
+
+@cindex @b{getCascadeTransformer} function (@code{Transformer})
+@deftypefun Transformer getCascadeTransformer (Cascade @var{cascade})
+Returns the designated @var{cascade} instance wrapped in an Adapter for
+use as a @b{Transformer}.
+@end deftypefun
+
+@cindex @b{getPaddingTransformer} function (@code{Transformer})
+@deftypefun Transformer getPaddingTransformer (IPad @var{padding})
+Returns the designated @var{padding} instance wrapped in an Adapter for
+use as a @b{Transformer}.
+@end deftypefun
+
+@cindex @b{getDeflateTransformer} function (@code{Transformer})
+@deftypefun Transformer getDeflateTransformer ()
+Returns a @b{Transformer} that underlies an implementation of the ZLib
+algorithm, able to deflate (compress) and inflate (decompress) data.
+@end deftypefun
+
+Concrete class instances of this abstract class, also expose the
+following instance methods:
+
+@cindex @b{setMode} function (@code{Transformer})
+@deftypefun void setMode (final Operation @var{mode})
+Sets the operational mode of this @b{Transformer} to the designated
+@var{mode} value. Throws @code{IllegalStateException} if this instance
+has already been assigned an operational mode.
+@end deftypefun
+
+@cindex @b{isPreProcessing} function (@code{Transformer})
+@deftypefun boolean isPreProcessing ()
+Returns @code{true} if this @b{Transformer} has been wired in
+pre-processing mode; returns @code{false} otherwise. Throws an
+@code{IllegalStateException} if this instance has not yet been assigned
+an operational mode.
+@end deftypefun
+
+@cindex @b{isPostProcessing} function (@code{Transformer})
+@deftypefun boolean isPostProcessing ()
+Returns @code{true} if this @b{Transformer} has been wired in
+post-processing mode; returns @code{false} otherwise. Throws an
+@code{IllegalStateException} if this instance has not yet been assigned
+an operational mode.
+@end deftypefun
+
+@cindex @b{init} function (@code{Transformer})
+@deftypefun void init (java.util.Map @var{attributes}) throws TransformerException
+Initializes the @b{Transformer} for operation with specific
+characteristics, indicated by the designated @var{attributes}. The
+latter being a set of name-value pairs that describes the desired future
+behavior of this instance. Throws an @code{IllegalStateException} if
+the instance is already initialized.
+@end deftypefun
+
+@cindex @b{currentBlockSize} function (@code{Transformer})
+@deftypefun int currentBlockSize ()
+Returns the block-size of this @b{Transformer}. A value of @code{1}
+indicates that this instance is block-agnostic.
+@end deftypefun
+
+@cindex @b{reset} function (@code{Transformer})
+@deftypefun void reset ()
+Resets the @b{Transformer} for re-initialization and use with other
+characteristics. This method always succeeds.
+@end deftypefun
+
+@cindex @b{update} function (@code{Transformer})
+@deftypefun byte[] update (byte @var{b}) throws TransformerException
+Convenience method that calls the method with same name and three
+arguments, using a byte array of length @code{1} whose contents are
+the designated byte @var{b}. Returns the result of transformation.
+Throws an @code{IllegalStateException} if the instance is not yet
+initialized. Throws an @code{TransformerException} if a
+transformation-related exception occurs during the operation.
+@end deftypefun
+
+@cindex @b{update} function (@code{Transformer})
+@deftypefun byte[] update (byte[] @var{in}) throws TransformerException
+Convenience method that calls the same method with three arguments. All
+bytes in @var{in}, starting from index position @var{0} are considered.
+Returns the result of transformation. Throws an @code{IllegalStateException}
+if the instance is not yet initialized. Throws a @code{TransformerException}
+if a transformation-related exception occurs during the operation.
+@end deftypefun
+
+@cindex @b{update} function (@code{Transformer})
+@deftypefun byte[] update (byte[] @var{in}, int @var{offset}, int @var{length}) throws TransformerException
+Returns the result of processing a designated @var{length} bytes from a
+given @var{in} byte array, starting at position @var{offset}. Throws an
+@code{IllegalStateException} if the instance is not yet initialized.
+Throws an @code{TransformerException} if a transformation-related
+exception occurs during the operation.
+@end deftypefun
+
+@cindex @b{lastUpdate} function (@code{Transformer})
+@deftypefun byte[] lastUpdate () throws TransformerException
+Convenience method that calls the same method with three arguments. A
+zero-long byte array is used. Returns the result of transformation.
+Throws an @code{IllegalStateException} if the instance is not yet
+initialized. Throws an @code{TransformerException} if a
+transformation-related exception occurs during the operation.
+@end deftypefun
+
+@cindex @b{lastUpdate} function (@code{Transformer})
+@deftypefun byte[] lastUpdate (byte @var{b}) throws TransformerException
+Convenience method that calls the method with same name and three
+arguments, using a byte array of length @code{1} whose contents are
+the designated byte @var{b}. Returns the result of transformation.
+Throws an @code{IllegalStateException} if the instance is not yet
+initialized. Throws an @code{TransformerException} if a
+transformation-related exception occurs during the operation.
+@end deftypefun
+
+@cindex @b{lastUpdate} function (@code{Transformer})
+@deftypefun byte[] lastUpdate (byte[] @var{in}) throws TransformerException
+Convenience method that calls the same method with three arguments. All
+bytes in @var{in}, starting from index position @code{0} are considered.
+Returns the result of transformation. Throws an @code{IllegalStateException}
+if the instance is not yet initialized. Throws an
+@code{TransformerException} if a transformation-related exception
+occurs during the operation.
+@end deftypefun
+
+@cindex @b{lastUpdate} function (@code{Transformer})
+@deftypefun byte[] lastUpdate (byte[] @var{in}, int @var{offset}, int @var{length}) throws TransformerException
+Returns the result of processing a designated @var{length} bytes from
+the given @var{in} byte array, starting at index position @var{offset}
+and signals, at the same time, that this is the last @i{push} operation
+on this @b{Transformer}. Throws an @code{IllegalStateException} if the
+instance is not yet initialized. Throws an @code{TransformerException}
+if a transformation-related exception occurs during the operation.
+@end deftypefun
+
+@c --------------------------------------------------------------------
+
+@node Assembly, Assembly Example, Transformer, Assemblies
+@section Assembly
+@cindex @code{gnu.crypto.assembly.Assembly} class
+
+An @b{Assembly} is a construction consisting of a chain of @b{Transformer}
+elements; each wired in pre- or post- operational mode. This chain is
+(always) terminated by one @code{LoopbackTransformer} element.
+
+Once constructed, and correctly initialized, the bulk of the methods
+available on the @b{Assembly} are delegated to the @i{head} of the
+@b{Transformer} chain of the @b{Assembly}.
+
+@cindex @b{DIRECTION} variable (@code{Assembly})
+@deftypevar String DIRECTION
+The name of a property in the attributes map that is passed to the
+@code{init} method, representing the assembly's desired wiring
+direction. The mapped value should be a valid @code{Direction} value.
+If this attribute is omitted, @code{Direction.FORWARD} is used.
+@end deftypevar
+
+@cindex @b{addPreTransformer} function (@code{Assembly})
+@deftypefun boolean addPreTransformer (Transformer @var{t})
+Adds the designated @b{Transformer} @var{t}, to the head of the current
+chain, and signals that it should operate in pre-processing mode; i.e.
+it should apply its internal transformation algorithm on the input data
+stream, @b{before} it passes that stream to the next element in the
+@i{chain}. Throws an @code{IllegalArgumentException} if the designated
+@b{Transformer} has a non-null tail; i.e. it is already an element of a
+chain.
+@end deftypefun
+
+@cindex @b{addPostTransformer} function (@code{Assembly})
+@deftypefun boolean addPostTransformer (Transformer @var{t})
+Adds the designated @b{Transformer} @var{t}, to the head of the current
+chain, and signals that it should operate in post-processing mode; i.e.
+it should apply its internal transformation algorithm on the input data
+stream, @b{after} it passes that stream to the next element in the
+@i{chain}. Throws an @code{IllegalArgumentException} if the designated
+@b{Transformer} has a non-null tail; i.e. it is already an element of a
+chain.
+@end deftypefun
+
+@cindex @b{init} function (@code{Assembly})
+@deftypefun void init (java.util.Map @var{attributes}) throws TransformerException
+Initializes the @b{Assembly} for operation with specific
+characteristics, indicated by the designated @var{attributes}. The
+latter being a set of name-value pairs that describes the desired future
+behavior of this instance. Throws an @code{IllegalStateException} if
+the instance is already initialized.
+@end deftypefun
+
+@cindex @b{reset} function (@code{Assembly})
+@deftypefun void reset ()
+Resets the @b{Assembly} for re-initialization and use with other
+characteristics. This method always succeeds.
+@end deftypefun
+
+@cindex @b{update} function (@code{Assembly})
+@deftypefun byte[] update (byte @var{b}) throws TransformerException
+Convenience method that calls the method with same name and three
+arguments, using a byte array of length @code{1} whose contents are
+the designated byte @var{b}. Returns the result of transformation.
+Throws an @code{IllegalStateException} if the instance is not yet
+initialized. Throws an @code{TransformerException} if a
+transformation-related exception occurs during the operation.
+@end deftypefun
+
+@cindex @b{update} function (@code{Assembly})
+@deftypefun byte[] update (byte[] @var{in}) throws TransformerException
+Convenience method that calls the same method with three arguments. All
+bytes in @var{in}, starting from index position @var{0} are considered.
+Returns the result of transformation. Throws an @code{IllegalStateException}
+if the instance is not yet initialized. Throws a @code{TransformerException}
+if a transformation-related exception occurs during the operation.
+@end deftypefun
+
+@cindex @b{update} function (@code{Assembly})
+@deftypefun byte[] update (byte[] @var{in}, int @var{offset}, int @var{length}) throws TransformerException
+Returns the result of processing a designated @var{length} bytes from a
+given @var{in} byte array, starting at position @var{offset}. Throws an
+@code{IllegalStateException} if the instance is not yet initialized.
+Throws an @code{TransformerException} if a transformation-related
+exception occurs during the operation.
+@end deftypefun
+
+@cindex @b{lastUpdate} function (@code{Assembly})
+@deftypefun byte[] lastUpdate () throws TransformerException
+Convenience method that calls the same method with three arguments. A
+zero-long byte array is used. Returns the result of transformation.
+Throws an @code{IllegalStateException} if the instance is not yet
+initialized. Throws an @code{TransformerException} if a
+transformation-related exception occurs during the operation.
+@end deftypefun
+
+@cindex @b{lastUpdate} function (@code{Assembly})
+@deftypefun byte[] lastUpdate (byte @var{b}) throws TransformerException
+Convenience method that calls the method with same name and three
+arguments, using a byte array of length @code{1} whose contents are
+the designated byte @var{b}. Returns the result of transformation.
+Throws an @code{IllegalStateException} if the instance is not yet
+initialized. Throws an @code{TransformerException} if a
+transformation-related exception occurs during the operation.
+@end deftypefun
+
+@cindex @b{lastUpdate} function (@code{Assembly})
+@deftypefun byte[] lastUpdate (byte[] @var{in}) throws TransformerException
+Convenience method that calls the same method with three arguments. All
+bytes in @var{in}, starting from index position @code{0} are considered.
+Returns the result of transformation. Throws an @code{IllegalStateException}
+if the instance is not yet initialized. Throws an
+@code{TransformerException} if a transformation-related exception
+occurs during the operation.
+@end deftypefun
+
+@cindex @b{lastUpdate} function (@code{Assembly})
+@deftypefun byte[] lastUpdate (byte[] @var{in}, int @var{offset}, int @var{length}) throws TransformerException
+Returns the result of processing a designated @var{length} bytes from
+the given @var{in} byte array, starting at index position @var{offset}
+and signals, at the same time, that this is the last @i{push} operation
+on this @b{Transformer}. Throws an @code{IllegalStateException} if the
+instance is not yet initialized. Throws an @code{TransformerException}
+if a transformation-related exception occurs during the operation.
+@end deftypefun
+
+@c --------------------------------------------------------------------
+
+@node Assembly Example, , Assembly, Assemblies
+@section Example
+
+@cindex example, Assembly
+
+The following example shows an @b{Assembly} that compresses its input
+data, before encrypting it with a Blowfish algorithm, in OFB mode, with
+PKCS7 padding.
+
+@sp 1
+
+@example
+import gnu.crypto.Registry;
+import gnu.crypto.util.Util;
+import gnu.crypto.assembly.Assembly;
+import gnu.crypto.assembly.Cascade;
+import gnu.crypto.assembly.Direction;
+import gnu.crypto.assembly.Stage;
+import gnu.crypto.assembly.Transformer;
+import gnu.crypto.assembly.TransformerException;
+import gnu.crypto.cipher.Blowfish;
+import gnu.crypto.cipher.IBlockCipher;
+import gnu.crypto.mode.IMode;
+import gnu.crypto.mode.ModeFactory;
+import gnu.crypto.pad.IPad;
+import gnu.crypto.pad.PadFactory;
+
+
+HashMap attributes = new HashMap();
+HashMap modeAttributes = new HashMap();
+
+Cascade ofbBlowfish = new Cascade();
+Object modeNdx = ofbBlowfish.append(
+    Stage.getInstance(
+        ModeFactory.getInstance(Registry.OFB_MODE, new Blowfish(), 8),
+        Direction.FORWARD));
+
+attributes.put(modeNdx, modeAttributes);
+IPad pkcs7 = PadFactory.getInstance(Registry.PKCS7_PAD);
+
+Assembly asm = new Assembly();
+asm.addPreTransformer(Transformer.getCascadeTransformer(ofbBlowfish));
+asm.addPreTransformer(Transformer.getPaddingTransformer(pkcs7));
+asm.addPreTransformer(Transformer.getDeflateTransformer());
+
+// plaintext and key material
+byte[] km = new byte[] @{ 0,  1,  2,  3,  4,  5,  6,  7,  8@};
+byte[] iv = new byte[] @{-1, -2, -3, -4, -5, -6, -7, -8, -9@};
+byte[] pt = new byte[] @{ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10,  11@};
+byte[] tpt = new byte[11 * pt.length];
+
+// forward transformation
+modeAttributes.put(IBlockCipher.KEY_MATERIAL, km);
+modeAttributes.put(IMode.IV, iv);
+attributes.put(Assembly.DIRECTION, Direction.FORWARD);
+try
+  @{
+    asm.init(attributes);
+  @}
+catch (TransformerException x)
+  @{
+    x.printStackTrace(System.err);
+  @}
+
+byte[] ct = null;
+ByteArrayOutputStream baos = new ByteArrayOutputStream();
+try
+  @{
+    for (int i = 0; i < 10; i++)
+      @{ // transform in parts of 12-byte a time
+        System.arraycopy(pt, 0, tpt, i * pt.length, pt.length);
+        ct = asm.update(pt);
+        baos.write(ct, 0, ct.length);
+      @}
+  @}
+catch (TransformerException x)
+  @{
+    x.printStackTrace(System.err);
+  @}
+
+try
+  @{
+    System.arraycopy(pt, 0, tpt, 10 * pt.length, pt.length);
+    ct = asm.lastUpdate(pt);
+  @}
+catch (TransformerException x)
+  @{
+    x.printStackTrace(System.err);
+  @}
+
+baos.write(ct, 0, ct.length);
+ct = baos.toByteArray();
+
+// reversed transformation
+attributes.put(Assembly.DIRECTION, Direction.REVERSED);
+try
+  @{
+    asm.init(attributes);
+  @}
+catch (TransformerException x)
+  @{
+    x.printStackTrace(System.err);
+  @}
+
+byte[] ot = null;
+try
+  @{
+    ot = asm.lastUpdate(ct); // transform the lot in one go
+  @}
+catch (TransformerException x)
+  @{
+    x.printStackTrace(System.err);
+  @}
+@end example

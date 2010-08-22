@@ -1,0 +1,567 @@
+package gnu.crypto.cipher;
+
+// ----------------------------------------------------------------------------
+// $Id: Serpent.java.in,v 1.1 2003/01/01 06:35:12 raif Exp $
+//
+// Copyright (C) 2001, 2002, 2003, Free Software Foundation, Inc.
+//
+// This file is part of GNU Crypto.
+//
+// GNU Crypto is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2, or (at your option)
+// any later version.
+//
+// GNU Crypto is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; see the file COPYING.  If not, write to the
+//
+//    Free Software Foundation Inc.,
+//    59 Temple Place - Suite 330,
+//    Boston, MA 02111-1307
+//    USA
+//
+// Linking this library statically or dynamically with other modules is
+// making a combined work based on this library.  Thus, the terms and
+// conditions of the GNU General Public License cover the whole
+// combination.
+//
+// As a special exception, the copyright holders of this library give
+// you permission to link this library with independent modules to
+// produce an executable, regardless of the license terms of these
+// independent modules, and to copy and distribute the resulting
+// executable under terms of your choice, provided that you also meet,
+// for each linked independent module, the terms and conditions of the
+// license of that module.  An independent module is a module which is
+// not derived from or based on this library.  If you modify this
+// library, you may extend this exception to your version of the
+// library, but you are not obligated to do so.  If you do not wish to
+// do so, delete this exception statement from your version.
+// ----------------------------------------------------------------------------
+include(serpent.m4)
+
+import gnu.crypto.Registry;
+import gnu.crypto.util.Util;
+
+import java.security.InvalidKeyException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+
+/**
+ * <p>Serpent is a 32-round substitution-permutation network block cipher,
+ * operating on 128-bit blocks and accepting keys of 128, 192, and 256 bits in
+ * length. At each round the plaintext is XORed with a 128 bit portion of the
+ * session key -- a 4224 bit key computed from the input key -- then one of
+ * eight S-boxes are applied, and finally a simple linear transformation is
+ * done. Decryption does the exact same thing in reverse order, and using the
+ * eight inverses of the S-boxes.</p>
+ *
+ * <p>Serpent was designed by Ross Anderson, Eli Biham, and Lars Knudsen as a
+ * proposed cipher for the Advanced Encryption Standard.</p>
+ *
+ * <p>Serpent can be sped up greatly by replacing S-box substitution with a
+ * sequence of binary operations, and the optimal implementation depends
+ * upon finding the fastest sequence of binary operations that reproduce this
+ * substitution. This implementation uses the S-boxes discovered by
+ * <a href="http://www.ii.uib.no/~osvik/">Dag Arne Osvik</a>, which are
+ * optimized for the Pentium family of processors.</p>
+ *
+ * <p>References:</p>
+ *
+ * <ol>
+ *    <li><a href="http://www.cl.cam.ac.uk/~rja14/serpent.html">Serpent: A
+ *    Candidate Block Cipher for the Advanced Encryption Standard.</a></li>
+ * </ol>
+ *
+ * @version $Revision: 1.1 $
+ */
+public class Serpent extends BaseCipher {
+
+   // Constants and variables
+   // -------------------------------------------------------------------------
+
+   private static final int DEFAULT_KEY_SIZE = 16;
+   private static final int DEFAULT_BLOCK_SIZE = 16;
+   private static final int ROUNDS = 32;
+
+   /** The fractional part of the golden ratio, (sqrt(5)+1)/2. */
+   private static final int PHI = 0x9E3779B9;
+
+   /**
+    * KAT vector (from ecb_vk):
+    * I=9
+    * KEY=008000000000000000000000000000000000000000000000
+    * CT=5587B5BCB9EE5A28BA2BACC418005240
+    */
+   private static final byte[] KAT_KEY =
+         Util.toReversedBytesFromString("008000000000000000000000000000000000000000000000");
+   private static final byte[] KAT_CT =
+         Util.toReversedBytesFromString("5587B5BCB9EE5A28BA2BACC418005240");
+
+   /** caches the result of the correctness test, once executed. */
+   private static Boolean valid;
+
+   // Constructor(s)
+   // -------------------------------------------------------------------------
+
+   /** Trivial zero-argument constructor. */
+   public Serpent() {
+      super(Registry.SERPENT_CIPHER, DEFAULT_BLOCK_SIZE, DEFAULT_KEY_SIZE);
+   }
+
+   // Class methods
+   // -------------------------------------------------------------------------
+
+   public static final void main(String[] args) {
+      Serpent algo = new Serpent();
+
+      algo.selfTest();
+   }
+
+   // Instance methods
+   // -------------------------------------------------------------------------
+
+   // java.lang.Cloneable interface implementation ----------------------------
+
+   public Object clone() {
+      return new Serpent();
+   }
+
+   // IBlockCipherSpi interface implementation --------------------------------
+
+   public Iterator blockSizes() {
+      return Collections.singleton(new Integer(DEFAULT_BLOCK_SIZE)).iterator();
+   }
+
+   public Iterator keySizes() {
+      ArrayList keySizes = new ArrayList();
+      keySizes.add(new Integer(16));
+      keySizes.add(new Integer(24));
+      keySizes.add(new Integer(32));
+
+      return Collections.unmodifiableList(keySizes).iterator();
+   }
+
+   public synchronized Object makeKey(byte[] kb, int blockSize)
+   throws InvalidKeyException {
+      // Not strictly true, but here to conform with the AES proposal.
+      // This restriction can be removed if deemed necessary.
+      if (kb.length != 16 && kb.length != 24 && kb.length != 32) {
+         throw new InvalidKeyException("Key length is not 16, 24, or 32 bytes");
+      }
+      Key key = new Key();
+
+      // Here w is our "pre-key".
+      int[] w = new int[4 * (ROUNDS + 1)];
+      int i, j;
+      for (i = 0, j = 0; i < kb.length / 4; i++) {
+         w[i] = (kb[j++] & 0xFF) | (kb[j++] & 0xFF) << 8 | (kb[j++] & 0xFF) << 16 | kb[j++] << 24;
+      }
+      // Pad key if < 256 bits.
+      if (i != 8) {
+         w[i] = 1; // 0x00000001
+      }
+
+      // Expand key using polynomial
+
+      int x0 = w[3];
+      int x1 = w[4];
+      int x2 = w[5];
+      int x3 = w[6];
+      int x4 = w[7];
+
+      m4_keyiter(w[0],x0,x4,x2,0)
+      m4_keyiter(w[1],x1,x0,x3,1)
+      m4_keyiter(w[2],x2,x1,x4,2)
+      m4_keyiter(w[3],x3,x2,x0,3)
+      m4_keyiter(w[4],x4,x3,x1,4)
+      m4_keyiter(w[5],x0,x4,x2,5)
+      m4_keyiter(w[6],x1,x0,x3,6)
+      m4_keyiter(w[7],x2,x1,x4,7)
+
+      m4_keyiter(w[0],x3,x2,x0,8)
+      m4_keyiter(w[1],x4,x3,x1,9)
+      m4_keyiter(w[2],x0,x4,x2,10)
+      m4_keyiter(w[3],x1,x0,x3,11)
+      m4_keyiter(w[4],x2,x1,x4,12)
+      m4_keyiter(w[5],x3,x2,x0,13)
+      m4_keyiter(w[6],x4,x3,x1,14)
+      m4_keyiter(w[7],x0,x4,x2,15)
+      m4_keyiter(w[8],x1,x0,x3,16)
+      m4_keyiter(w[9],x2,x1,x4,17)
+      m4_keyiter(w[10],x3,x2,x0,18)
+      m4_keyiter(w[11],x4,x3,x1,19)
+      m4_keyiter(w[12],x0,x4,x2,20)
+      m4_keyiter(w[13],x1,x0,x3,21)
+      m4_keyiter(w[14],x2,x1,x4,22)
+      m4_keyiter(w[15],x3,x2,x0,23)
+      m4_keyiter(w[16],x4,x3,x1,24)
+      m4_keyiter(w[17],x0,x4,x2,25)
+      m4_keyiter(w[18],x1,x0,x3,26)
+      m4_keyiter(w[19],x2,x1,x4,27)
+      m4_keyiter(w[20],x3,x2,x0,28)
+      m4_keyiter(w[21],x4,x3,x1,29)
+      m4_keyiter(w[22],x0,x4,x2,30)
+      m4_keyiter(w[23],x1,x0,x3,31)
+      m4_keyiter(w[24],x2,x1,x4,32)
+      m4_keyiter(w[25],x3,x2,x0,33)
+      m4_keyiter(w[26],x4,x3,x1,34)
+      m4_keyiter(w[27],x0,x4,x2,35)
+      m4_keyiter(w[28],x1,x0,x3,36)
+      m4_keyiter(w[29],x2,x1,x4,37)
+      m4_keyiter(w[30],x3,x2,x0,38)
+      m4_keyiter(w[31],x4,x3,x1,39)
+      m4_keyiter(w[32],x0,x4,x2,40)
+      m4_keyiter(w[33],x1,x0,x3,41)
+      m4_keyiter(w[34],x2,x1,x4,42)
+      m4_keyiter(w[35],x3,x2,x0,43)
+      m4_keyiter(w[36],x4,x3,x1,44)
+      m4_keyiter(w[37],x0,x4,x2,45)
+      m4_keyiter(w[38],x1,x0,x3,46)
+      m4_keyiter(w[39],x2,x1,x4,47)
+      m4_keyiter(w[40],x3,x2,x0,48)
+      m4_keyiter(w[41],x4,x3,x1,49)
+      m4_keyiter(w[42],x0,x4,x2,50)
+      m4_keyiter(w[43],x1,x0,x3,51)
+      m4_keyiter(w[44],x2,x1,x4,52)
+      m4_keyiter(w[45],x3,x2,x0,53)
+      m4_keyiter(w[46],x4,x3,x1,54)
+      m4_keyiter(w[47],x0,x4,x2,55)
+      m4_keyiter(w[48],x1,x0,x3,56)
+      m4_keyiter(w[49],x2,x1,x4,57)
+      m4_keyiter(w[50],x3,x2,x0,58)
+      m4_keyiter(w[51],x4,x3,x1,59)
+      m4_keyiter(w[52],x0,x4,x2,60)
+      m4_keyiter(w[53],x1,x0,x3,61)
+      m4_keyiter(w[54],x2,x1,x4,62)
+      m4_keyiter(w[55],x3,x2,x0,63)
+      m4_keyiter(w[56],x4,x3,x1,64)
+      m4_keyiter(w[57],x0,x4,x2,65)
+      m4_keyiter(w[58],x1,x0,x3,66)
+      m4_keyiter(w[59],x2,x1,x4,67)
+      m4_keyiter(w[60],x3,x2,x0,68)
+      m4_keyiter(w[61],x4,x3,x1,69)
+      m4_keyiter(w[62],x0,x4,x2,70)
+      m4_keyiter(w[63],x1,x0,x3,71)
+      m4_keyiter(w[64],x2,x1,x4,72)
+      m4_keyiter(w[65],x3,x2,x0,73)
+      m4_keyiter(w[66],x4,x3,x1,74)
+      m4_keyiter(w[67],x0,x4,x2,75)
+      m4_keyiter(w[68],x1,x0,x3,76)
+      m4_keyiter(w[69],x2,x1,x4,77)
+      m4_keyiter(w[70],x3,x2,x0,78)
+      m4_keyiter(w[71],x4,x3,x1,79)
+      m4_keyiter(w[72],x0,x4,x2,80)
+      m4_keyiter(w[73],x1,x0,x3,81)
+      m4_keyiter(w[74],x2,x1,x4,82)
+      m4_keyiter(w[75],x3,x2,x0,83)
+      m4_keyiter(w[76],x4,x3,x1,84)
+      m4_keyiter(w[77],x0,x4,x2,85)
+      m4_keyiter(w[78],x1,x0,x3,86)
+      m4_keyiter(w[79],x2,x1,x4,87)
+      m4_keyiter(w[80],x3,x2,x0,88)
+      m4_keyiter(w[81],x4,x3,x1,89)
+      m4_keyiter(w[82],x0,x4,x2,90)
+      m4_keyiter(w[83],x1,x0,x3,91)
+      m4_keyiter(w[84],x2,x1,x4,92)
+      m4_keyiter(w[85],x3,x2,x0,93)
+      m4_keyiter(w[86],x4,x3,x1,94)
+      m4_keyiter(w[87],x0,x4,x2,95)
+      m4_keyiter(w[88],x1,x0,x3,96)
+      m4_keyiter(w[89],x2,x1,x4,97)
+      m4_keyiter(w[90],x3,x2,x0,98)
+      m4_keyiter(w[91],x4,x3,x1,99)
+      m4_keyiter(w[92],x0,x4,x2,100)
+      m4_keyiter(w[93],x1,x0,x3,101)
+      m4_keyiter(w[94],x2,x1,x4,102)
+      m4_keyiter(w[95],x3,x2,x0,103)
+      m4_keyiter(w[96],x4,x3,x1,104)
+      m4_keyiter(w[97],x0,x4,x2,105)
+      m4_keyiter(w[98],x1,x0,x3,106)
+      m4_keyiter(w[99],x2,x1,x4,107)
+      m4_keyiter(w[100],x3,x2,x0,108)
+      m4_keyiter(w[101],x4,x3,x1,109)
+      m4_keyiter(w[102],x0,x4,x2,110)
+      m4_keyiter(w[103],x1,x0,x3,111)
+      m4_keyiter(w[104],x2,x1,x4,112)
+      m4_keyiter(w[105],x3,x2,x0,113)
+      m4_keyiter(w[106],x4,x3,x1,114)
+      m4_keyiter(w[107],x0,x4,x2,115)
+      m4_keyiter(w[108],x1,x0,x3,116)
+      m4_keyiter(w[109],x2,x1,x4,117)
+      m4_keyiter(w[110],x3,x2,x0,118)
+      m4_keyiter(w[111],x4,x3,x1,119)
+      m4_keyiter(w[112],x0,x4,x2,120)
+      m4_keyiter(w[113],x1,x0,x3,121)
+      m4_keyiter(w[114],x2,x1,x4,122)
+      m4_keyiter(w[115],x3,x2,x0,123)
+      m4_keyiter(w[116],x4,x3,x1,124)
+      m4_keyiter(w[117],x0,x4,x2,125)
+      m4_keyiter(w[118],x1,x0,x3,126)
+      m4_keyiter(w[119],x2,x1,x4,127)
+      m4_keyiter(w[120],x3,x2,x0,128)
+      m4_keyiter(w[121],x4,x3,x1,129)
+      m4_keyiter(w[122],x0,x4,x2,130)
+      m4_keyiter(w[123],x1,x0,x3,131)
+
+      // Apply S-boxes
+      m4_S3(x3,x4,x0,x1,x2) m4_storekeys(x1,x2,x4,x3,128) m4_loadkeys(x1,x2,x4,x3,124)
+      m4_S4(x1,x2,x4,x3,x0) m4_storekeys(x2,x4,x3,x0,124) m4_loadkeys(x2,x4,x3,x0,120)
+      m4_S5(x2,x4,x3,x0,x1) m4_storekeys(x1,x2,x4,x0,120) m4_loadkeys(x1,x2,x4,x0,116)
+      m4_S6(x1,x2,x4,x0,x3) m4_storekeys(x4,x3,x2,x0,116) m4_loadkeys(x4,x3,x2,x0,112)
+      m4_S7(x4,x3,x2,x0,x1) m4_storekeys(x1,x2,x0,x4,112) m4_loadkeys(x1,x2,x0,x4,108)
+      m4_S0(x1,x2,x0,x4,x3) m4_storekeys(x0,x2,x4,x1,108) m4_loadkeys(x0,x2,x4,x1,104)
+      m4_S1(x0,x2,x4,x1,x3) m4_storekeys(x3,x4,x1,x0,104) m4_loadkeys(x3,x4,x1,x0,100)
+      m4_S2(x3,x4,x1,x0,x2) m4_storekeys(x2,x4,x3,x0,100) m4_loadkeys(x2,x4,x3,x0,96)
+      m4_S3(x2,x4,x3,x0,x1) m4_storekeys(x0,x1,x4,x2,96) m4_loadkeys(x0,x1,x4,x2,92)
+      m4_S4(x0,x1,x4,x2,x3) m4_storekeys(x1,x4,x2,x3,92) m4_loadkeys(x1,x4,x2,x3,88)
+      m4_S5(x1,x4,x2,x3,x0) m4_storekeys(x0,x1,x4,x3,88) m4_loadkeys(x0,x1,x4,x3,84)
+      m4_S6(x0,x1,x4,x3,x2) m4_storekeys(x4,x2,x1,x3,84) m4_loadkeys(x4,x2,x1,x3,80)
+      m4_S7(x4,x2,x1,x3,x0) m4_storekeys(x0,x1,x3,x4,80) m4_loadkeys(x0,x1,x3,x4,76)
+      m4_S0(x0,x1,x3,x4,x2) m4_storekeys(x3,x1,x4,x0,76) m4_loadkeys(x3,x1,x4,x0,72)
+      m4_S1(x3,x1,x4,x0,x2) m4_storekeys(x2,x4,x0,x3,72) m4_loadkeys(x2,x4,x0,x3,68)
+      m4_S2(x2,x4,x0,x3,x1) m4_storekeys(x1,x4,x2,x3,68) m4_loadkeys(x1,x4,x2,x3,64)
+      m4_S3(x1,x4,x2,x3,x0) m4_storekeys(x3,x0,x4,x1,64) m4_loadkeys(x3,x0,x4,x1,60)
+      m4_S4(x3,x0,x4,x1,x2) m4_storekeys(x0,x4,x1,x2,60) m4_loadkeys(x0,x4,x1,x2,56)
+      m4_S5(x0,x4,x1,x2,x3) m4_storekeys(x3,x0,x4,x2,56) m4_loadkeys(x3,x0,x4,x2,52)
+      m4_S6(x3,x0,x4,x2,x1) m4_storekeys(x4,x1,x0,x2,52) m4_loadkeys(x4,x1,x0,x2,48)
+      m4_S7(x4,x1,x0,x2,x3) m4_storekeys(x3,x0,x2,x4,48) m4_loadkeys(x3,x0,x2,x4,44)
+      m4_S0(x3,x0,x2,x4,x1) m4_storekeys(x2,x0,x4,x3,44) m4_loadkeys(x2,x0,x4,x3,40)
+      m4_S1(x2,x0,x4,x3,x1) m4_storekeys(x1,x4,x3,x2,40) m4_loadkeys(x1,x4,x3,x2,36)
+      m4_S2(x1,x4,x3,x2,x0) m4_storekeys(x0,x4,x1,x2,36) m4_loadkeys(x0,x4,x1,x2,32)
+      m4_S3(x0,x4,x1,x2,x3) m4_storekeys(x2,x3,x4,x0,32) m4_loadkeys(x2,x3,x4,x0,28)
+      m4_S4(x2,x3,x4,x0,x1) m4_storekeys(x3,x4,x0,x1,28) m4_loadkeys(x3,x4,x0,x1,24)
+      m4_S5(x3,x4,x0,x1,x2) m4_storekeys(x2,x3,x4,x1,24) m4_loadkeys(x2,x3,x4,x1,20)
+      m4_S6(x2,x3,x4,x1,x0) m4_storekeys(x4,x0,x3,x1,20) m4_loadkeys(x4,x0,x3,x1,16)
+      m4_S7(x4,x0,x3,x1,x2) m4_storekeys(x2,x3,x1,x4,16) m4_loadkeys(x2,x3,x1,x4,12)
+      m4_S0(x2,x3,x1,x4,x0) m4_storekeys(x1,x3,x4,x2,12) m4_loadkeys(x1,x3,x4,x2,8)
+      m4_S1(x1,x3,x4,x2,x0) m4_storekeys(x0,x4,x2,x1,8) m4_loadkeys(x0,x4,x2,x1,4)
+      m4_S2(x0,x4,x2,x1,x3) m4_storekeys(x3,x4,x0,x1,4) m4_loadkeys(x3,x4,x0,x1,0)
+      m4_S3(x3,x4,x0,x1,x2) m4_storekeys(x1,x2,x4,x3,0)
+
+      // -----
+
+      return key;
+   }
+
+   public void encrypt(byte[] in, int i, byte[] out, int o, Object K, int bs) {
+      final Key key = (Key) K;
+
+      int x0 = (in[i++] & 0xFF) | (in[i++] & 0xFF) << 8 | (in[i++] & 0xFF) << 16 | in[i++] << 24;
+      int x1 = (in[i++] & 0xFF) | (in[i++] & 0xFF) << 8 | (in[i++] & 0xFF) << 16 | in[i++] << 24;
+      int x2 = (in[i++] & 0xFF) | (in[i++] & 0xFF) << 8 | (in[i++] & 0xFF) << 16 | in[i++] << 24;
+      int x3 = (in[i++] & 0xFF) | (in[i++] & 0xFF) << 8 | (in[i++] & 0xFF) << 16 | in[i  ] << 24;
+      int x4;
+
+      // -----
+      m4_K(x0,x1,x2,x3,0)
+      m4_S0(x0,x1,x2,x3,x4) m4_LK(x2,x1,x3,x0,x4,1)
+      m4_S1(x2,x1,x3,x0,x4) m4_LK(x4,x3,x0,x2,x1,2)
+      m4_S2(x4,x3,x0,x2,x1) m4_LK(x1,x3,x4,x2,x0,3)
+      m4_S3(x1,x3,x4,x2,x0) m4_LK(x2,x0,x3,x1,x4,4)
+      m4_S4(x2,x0,x3,x1,x4) m4_LK(x0,x3,x1,x4,x2,5)
+      m4_S5(x0,x3,x1,x4,x2) m4_LK(x2,x0,x3,x4,x1,6)
+      m4_S6(x2,x0,x3,x4,x1) m4_LK(x3,x1,x0,x4,x2,7)
+      m4_S7(x3,x1,x0,x4,x2) m4_LK(x2,x0,x4,x3,x1,8)
+      m4_S0(x2,x0,x4,x3,x1) m4_LK(x4,x0,x3,x2,x1,9)
+      m4_S1(x4,x0,x3,x2,x1) m4_LK(x1,x3,x2,x4,x0,10)
+      m4_S2(x1,x3,x2,x4,x0) m4_LK(x0,x3,x1,x4,x2,11)
+      m4_S3(x0,x3,x1,x4,x2) m4_LK(x4,x2,x3,x0,x1,12)
+      m4_S4(x4,x2,x3,x0,x1) m4_LK(x2,x3,x0,x1,x4,13)
+      m4_S5(x2,x3,x0,x1,x4) m4_LK(x4,x2,x3,x1,x0,14)
+      m4_S6(x4,x2,x3,x1,x0) m4_LK(x3,x0,x2,x1,x4,15)
+      m4_S7(x3,x0,x2,x1,x4) m4_LK(x4,x2,x1,x3,x0,16)
+      m4_S0(x4,x2,x1,x3,x0) m4_LK(x1,x2,x3,x4,x0,17)
+      m4_S1(x1,x2,x3,x4,x0) m4_LK(x0,x3,x4,x1,x2,18)
+      m4_S2(x0,x3,x4,x1,x2) m4_LK(x2,x3,x0,x1,x4,19)
+      m4_S3(x2,x3,x0,x1,x4) m4_LK(x1,x4,x3,x2,x0,20)
+      m4_S4(x1,x4,x3,x2,x0) m4_LK(x4,x3,x2,x0,x1,21)
+      m4_S5(x4,x3,x2,x0,x1) m4_LK(x1,x4,x3,x0,x2,22)
+      m4_S6(x1,x4,x3,x0,x2) m4_LK(x3,x2,x4,x0,x1,23)
+      m4_S7(x3,x2,x4,x0,x1) m4_LK(x1,x4,x0,x3,x2,24)
+      m4_S0(x1,x4,x0,x3,x2) m4_LK(x0,x4,x3,x1,x2,25)
+      m4_S1(x0,x4,x3,x1,x2) m4_LK(x2,x3,x1,x0,x4,26)
+      m4_S2(x2,x3,x1,x0,x4) m4_LK(x4,x3,x2,x0,x1,27)
+      m4_S3(x4,x3,x2,x0,x1) m4_LK(x0,x1,x3,x4,x2,28)
+      m4_S4(x0,x1,x3,x4,x2) m4_LK(x1,x3,x4,x2,x0,29)
+      m4_S5(x1,x3,x4,x2,x0) m4_LK(x0,x1,x3,x2,x4,30)
+      m4_S6(x0,x1,x3,x2,x4) m4_LK(x3,x4,x1,x2,x0,31)
+      m4_S7(x3,x4,x1,x2,x0) m4_K(x0,x1,x2,x3,32)
+
+      // -----
+
+      out[o++] = (byte) x0;
+      out[o++] = (byte)(x0 >>> 8);
+      out[o++] = (byte)(x0 >>> 16);
+      out[o++] = (byte)(x0 >>> 24);
+      out[o++] = (byte) x1;
+      out[o++] = (byte)(x1 >>> 8);
+      out[o++] = (byte)(x1 >>> 16);
+      out[o++] = (byte)(x1 >>> 24);
+      out[o++] = (byte) x2;
+      out[o++] = (byte)(x2 >>> 8);
+      out[o++] = (byte)(x2 >>> 16);
+      out[o++] = (byte)(x2 >>> 24);
+      out[o++] = (byte) x3;
+      out[o++] = (byte)(x3 >>> 8);
+      out[o++] = (byte)(x3 >>> 16);
+      out[o  ] = (byte)(x3 >>> 24);
+   }
+
+   public void decrypt(byte[] in, int i, byte[] out, int o, Object K, int bs) {
+      final Key key = (Key) K;
+
+      int x0 = (in[i++] & 0xFF) | (in[i++] & 0xFF) << 8 | (in[i++] & 0xFF) << 16 | in[i++] << 24;
+      int x1 = (in[i++] & 0xFF) | (in[i++] & 0xFF) << 8 | (in[i++] & 0xFF) << 16 | in[i++] << 24;
+      int x2 = (in[i++] & 0xFF) | (in[i++] & 0xFF) << 8 | (in[i++] & 0xFF) << 16 | in[i++] << 24;
+      int x3 = (in[i++] & 0xFF) | (in[i++] & 0xFF) << 8 | (in[i++] & 0xFF) << 16 | in[i  ] << 24;
+      int x4;
+
+      // -----
+      m4_K(x0,x1,x2,x3,32)
+      m4_SI7(x0,x1,x2,x3,x4) m4_KL(x1,x3,x0,x4,x2,31)
+      m4_SI6(x1,x3,x0,x4,x2) m4_KL(x0,x2,x4,x1,x3,30)
+      m4_SI5(x0,x2,x4,x1,x3) m4_KL(x2,x3,x0,x4,x1,29)
+      m4_SI4(x2,x3,x0,x4,x1) m4_KL(x2,x0,x1,x4,x3,28)
+      m4_SI3(x2,x0,x1,x4,x3) m4_KL(x1,x2,x3,x4,x0,27)
+      m4_SI2(x1,x2,x3,x4,x0) m4_KL(x2,x0,x4,x3,x1,26)
+      m4_SI1(x2,x0,x4,x3,x1) m4_KL(x1,x0,x4,x3,x2,25)
+      m4_SI0(x1,x0,x4,x3,x2) m4_KL(x4,x2,x0,x1,x3,24)
+      m4_SI7(x4,x2,x0,x1,x3) m4_KL(x2,x1,x4,x3,x0,23)
+      m4_SI6(x2,x1,x4,x3,x0) m4_KL(x4,x0,x3,x2,x1,22)
+      m4_SI5(x4,x0,x3,x2,x1) m4_KL(x0,x1,x4,x3,x2,21)
+      m4_SI4(x0,x1,x4,x3,x2) m4_KL(x0,x4,x2,x3,x1,20)
+      m4_SI3(x0,x4,x2,x3,x1) m4_KL(x2,x0,x1,x3,x4,19)
+      m4_SI2(x2,x0,x1,x3,x4) m4_KL(x0,x4,x3,x1,x2,18)
+      m4_SI1(x0,x4,x3,x1,x2) m4_KL(x2,x4,x3,x1,x0,17)
+      m4_SI0(x2,x4,x3,x1,x0) m4_KL(x3,x0,x4,x2,x1,16)
+      m4_SI7(x3,x0,x4,x2,x1) m4_KL(x0,x2,x3,x1,x4,15)
+      m4_SI6(x0,x2,x3,x1,x4) m4_KL(x3,x4,x1,x0,x2,14)
+      m4_SI5(x3,x4,x1,x0,x2) m4_KL(x4,x2,x3,x1,x0,13)
+      m4_SI4(x4,x2,x3,x1,x0) m4_KL(x4,x3,x0,x1,x2,12)
+      m4_SI3(x4,x3,x0,x1,x2) m4_KL(x0,x4,x2,x1,x3,11)
+      m4_SI2(x0,x4,x2,x1,x3) m4_KL(x4,x3,x1,x2,x0,10)
+      m4_SI1(x4,x3,x1,x2,x0) m4_KL(x0,x3,x1,x2,x4,9)
+      m4_SI0(x0,x3,x1,x2,x4) m4_KL(x1,x4,x3,x0,x2,8)
+      m4_SI7(x1,x4,x3,x0,x2) m4_KL(x4,x0,x1,x2,x3,7)
+      m4_SI6(x4,x0,x1,x2,x3) m4_KL(x1,x3,x2,x4,x0,6)
+      m4_SI5(x1,x3,x2,x4,x0) m4_KL(x3,x0,x1,x2,x4,5)
+      m4_SI4(x3,x0,x1,x2,x4) m4_KL(x3,x1,x4,x2,x0,4)
+      m4_SI3(x3,x1,x4,x2,x0) m4_KL(x4,x3,x0,x2,x1,3)
+      m4_SI2(x4,x3,x0,x2,x1) m4_KL(x3,x1,x2,x0,x4,2)
+      m4_SI1(x3,x1,x2,x0,x4) m4_KL(x4,x1,x2,x0,x3,1)
+      m4_SI0(x4,x1,x2,x0,x3) m4_K(x2,x3,x1,x4,0)
+
+      // -----
+
+      out[o++] = (byte) x2;
+      out[o++] = (byte)(x2 >>> 8);
+      out[o++] = (byte)(x2 >>> 16);
+      out[o++] = (byte)(x2 >>> 24);
+      out[o++] = (byte) x3;
+      out[o++] = (byte)(x3 >>> 8);
+      out[o++] = (byte)(x3 >>> 16);
+      out[o++] = (byte)(x3 >>> 24);
+      out[o++] = (byte) x1;
+      out[o++] = (byte)(x1 >>> 8);
+      out[o++] = (byte)(x1 >>> 16);
+      out[o++] = (byte)(x1 >>> 24);
+      out[o++] = (byte) x4;
+      out[o++] = (byte)(x4 >>> 8);
+      out[o++] = (byte)(x4 >>> 16);
+      out[o  ] = (byte)(x4 >>> 24);
+   }
+
+   public boolean selfTest() {
+      if (valid == null) {
+         boolean result = super.selfTest(); // do symmetry tests
+         if (result) {
+            result = testKat(KAT_KEY, KAT_CT);
+         }
+         valid = new Boolean(result);
+      }
+      return valid.booleanValue();
+   }
+
+   // Inner class(es)
+   // =========================================================================
+
+   /** A trivial class to eliminate array index range-checking at runtime. */
+   private class Key {
+      int k0,   k1,   k2,   k3,   k4,   k5,   k6,   k7,   k8,   k9,   k10,  k11,
+          k12,  k13,  k14,  k15,  k16,  k17,  k18,  k19,  k20,  k21,  k22,  k23,
+          k24,  k25,  k26,  k27,  k28,  k29,  k30,  k31,  k32,  k33,  k34,  k35,
+          k36,  k37,  k38,  k39,  k40,  k41,  k42,  k43,  k44,  k45,  k46,  k47,
+          k48,  k49,  k50,  k51,  k52,  k53,  k54,  k55,  k56,  k57,  k58,  k59,
+          k60,  k61,  k62,  k63,  k64,  k65,  k66,  k67,  k68,  k69,  k70,  k71,
+          k72,  k73,  k74,  k75,  k76,  k77,  k78,  k79,  k80,  k81,  k82,  k83,
+          k84,  k85,  k86,  k87,  k88,  k89,  k90,  k91,  k92,  k93,  k94,  k95,
+          k96,  k97,  k98,  k99,  k100, k101, k102, k103, k104, k105, k106, k107,
+          k108, k109, k110, k111, k112, k113, k114, k115, k116, k117, k118, k119,
+          k120, k121, k122, k123, k124, k125, k126, k127, k128, k129, k130, k131;
+
+      /** Trivial 0-arguments constructor. */
+      Key() {
+      }
+
+      /** Cloning constructor. */
+      private Key(Key that) {
+         this.k0 = that.k0; this.k1 = that.k1; this.k2 = that.k2;
+         this.k3 = that.k3; this.k4 = that.k4; this.k5 = that.k5;
+         this.k6 = that.k6; this.k7 = that.k7; this.k8 = that.k8;
+         this.k9 = that.k9; this.k10 = that.k10; this.k11 = that.k11;
+         this.k12 = that.k12; this.k13 = that.k13; this.k14 = that.k14;
+         this.k15 = that.k15; this.k16 = that.k16; this.k17 = that.k17;
+         this.k18 = that.k18; this.k19 = that.k19; this.k20 = that.k20;
+         this.k21 = that.k21; this.k22 = that.k22; this.k23 = that.k23;
+         this.k24 = that.k24; this.k25 = that.k25; this.k26 = that.k26;
+         this.k27 = that.k27; this.k28 = that.k28; this.k29 = that.k29;
+         this.k30 = that.k30; this.k31 = that.k31; this.k32 = that.k32;
+         this.k33 = that.k33; this.k34 = that.k34; this.k35 = that.k35;
+         this.k36 = that.k36; this.k37 = that.k37; this.k38 = that.k38;
+         this.k39 = that.k39; this.k40 = that.k40; this.k41 = that.k41;
+         this.k42 = that.k42; this.k43 = that.k43; this.k44 = that.k44;
+         this.k45 = that.k45; this.k46 = that.k46; this.k47 = that.k47;
+         this.k48 = that.k48; this.k49 = that.k49; this.k50 = that.k50;
+         this.k51 = that.k51; this.k52 = that.k52; this.k53 = that.k53;
+         this.k54 = that.k54; this.k55 = that.k55; this.k56 = that.k56;
+         this.k57 = that.k57; this.k58 = that.k58; this.k59 = that.k59;
+         this.k60 = that.k60; this.k61 = that.k61; this.k62 = that.k62;
+         this.k63 = that.k63; this.k64 = that.k64; this.k65 = that.k65;
+         this.k66 = that.k66; this.k67 = that.k67; this.k68 = that.k68;
+         this.k69 = that.k69; this.k70 = that.k70; this.k71 = that.k71;
+         this.k72 = that.k72; this.k73 = that.k73; this.k74 = that.k74;
+         this.k75 = that.k75; this.k76 = that.k76; this.k77 = that.k77;
+         this.k78 = that.k78; this.k79 = that.k79; this.k80 = that.k80;
+         this.k81 = that.k81; this.k82 = that.k82; this.k83 = that.k83;
+         this.k84 = that.k84; this.k85 = that.k85; this.k86 = that.k86;
+         this.k87 = that.k87; this.k88 = that.k88; this.k89 = that.k89;
+         this.k90 = that.k90; this.k91 = that.k91; this.k92 = that.k92;
+         this.k93 = that.k93; this.k94 = that.k94; this.k95 = that.k95;
+         this.k96 = that.k96; this.k97 = that.k97; this.k98 = that.k98;
+         this.k99 = that.k99; this.k100 = that.k100; this.k101 = that.k101;
+         this.k102 = that.k102; this.k103 = that.k103; this.k104 = that.k104;
+         this.k105 = that.k105; this.k106 = that.k106; this.k107 = that.k107;
+         this.k108 = that.k108; this.k109 = that.k109; this.k110 = that.k110;
+         this.k111 = that.k111; this.k112 = that.k112; this.k113 = that.k113;
+         this.k114 = that.k114; this.k115 = that.k115; this.k116 = that.k116;
+         this.k117 = that.k117; this.k118 = that.k118; this.k119 = that.k119;
+         this.k120 = that.k120; this.k121 = that.k121; this.k122 = that.k122;
+         this.k123 = that.k123; this.k124 = that.k124; this.k125 = that.k125;
+         this.k126 = that.k126; this.k127 = that.k127; this.k128 = that.k128;
+         this.k129 = that.k129; this.k130 = that.k130; this.k131 = that.k131;
+      }
+
+      // Cloneable interface implementation -----------------------------------
+
+      public Object clone() {
+         return new Key(this);
+      }
+   }
+}
+

@@ -1,0 +1,315 @@
+@node Ciphers, Modes, Introduction, Top
+@chapter Ciphers
+@cindex ciphers
+@cindex @code{gnu.crypto.cipher} package
+
+@menu
+* The IBlockCipher Interface::     The standard block cipher interface.
+* The CipherFactory Class::        How to obtain a cipher instance.
+* Cipher Example::                 A simple example.
+@end menu
+
+This chapter describes the symmetric ciphers implemented by GNU Crypto,
+and how to create and use them. The package name for all GNU Crypto
+ciphers is @code{gnu.crypto.cipher}. The ciphers implemented by GNU Crypto
+are:
+
+@itemize @bullet
+
+@cindex Advanced Encryption Standard (AES)
+@cindex Daemen, Joan
+@cindex Rijmen, Vincent
+@cindex National Institute for Standards and Technology (NIST)
+@item
+The @b{Advanced Encryption Standard}, or the @b{AES}. The AES is a
+symmetric block cipher with a 128 bit block size and a key size of 128,
+192, or 256 bits. The AES was adopted as US FIPS PUB 197 [NIST01] by the
+National Institute of Standards and Technology (NIST) in November 2001
+after a five-year process of standarization and public comment. The AES
+was written by Joan Daemen and Vincent Rijmen for the AES process, and
+is derived from the Rijndael cipher.
+
+@cindex Anubis cipher
+@cindex Barreto, Paulo
+@cindex New European Schemes for Signatures, Integrity, and Encryption (NESSIE)
+
+@item
+@b{Anubis}. The Anubis cipher is a symmetric block cipher with a
+128 bit block size and a key size from 128 to 320 bits, with increments
+of 32 bits. Anubis was designed by Paulo Barreto and Vincent Rijmen, and
+has been submitted as a candidate cipher to the New European Schemes for
+Signatures, Integrity, and Encryption (NESSIE) process.
+
+@cindex Blowfish cipher
+@cindex Schneier, Bruce
+
+@item
+@b{Blowfish}. The Blowfish symmetric block cipher was designed by
+Bruce Schneier. It has a 64 bit block size and a key size of up to 448
+bits. Blowfish encryption and decryption are very fast in software,
+especially on 32 bit microprocessor architectures.
+
+@cindex DES cipher
+@cindex Data Encryption Standard
+
+@item
+@b{DES}. DES is the Data encryption standard, a 64-bit cipher with a
+56-bit key. DES was developed by IBM in the 1970's for a
+standardization process begun by the National Bureau of Standards (now
+NIST). DES should not be used in new applications in favor of the new
+standard, AES, except for compatibility.
+
+@cindex identity cipher
+
+@item
+@b{Identity cipher}. The identity, or null cipher, is not a true
+cipher as it does not transform the data input, but rather copies it
+directly to the output.
+
+@cindex Khazad cipher
+
+@item
+@b{Khazad}. The Khazad cipher is a symmetric block cipher with a 64
+bit block size and a 128 bit key size. Khazad was designed by Paulo
+Barreto and Vincent Rijmen, and has been submitted as a candidate cipher
+to the New European Schemes for Signatures, Integrity, and Encryption
+(NESSIE) process.
+
+@cindex Rijndael cipher
+
+@item
+@b{Rijndael}. Rijndael is a symmetric block cipher written by Joan
+Daemen and Vincent Rijmen as a candidate to the Advanced Encryption
+Standard process, and was adopted as the AES. Rijndael additionally has
+a 192 and 256 bit block size.
+
+@cindex Serpent cipher
+@cindex Anderson, Ross
+@cindex Biham, Eli
+@cindex Knudsen, Lars
+
+@item
+@b{Serpent}. The Serpent cipher was designed by Ross Anderson, Eli
+Biham, and Lars Knudsen as a proposed cipher for the Advanced Encryption
+Standard. Serpent has a 128 bit block size, and a key size of 128, 192,
+or 256 bits.
+
+@cindex Square cipher
+
+@item
+@b{Square}. The Square cipher was designed by Joan Daemen and
+Vincent Rijmen and was cryptanalyzed by Lars Knudsen. It has a 128 bit
+block size and a 128 bit key size.
+
+@cindex Triple-DES cipher
+
+@item
+@b{Triple-DES}, or DESede, is a combined cipher based on the Data
+Encryption Standard. It is the iteration of three seperate instances of
+DES with three independent keys, and therefore has a 64 bit block
+size and a key size of 168 bits.
+
+@cindex Twofish cipher
+@cindex Kelsey, John
+@cindex Whiting, Doug
+@cindex Wagner, David
+@cindex Hall, Chris
+@cindex Ferguson, Neils
+
+@item
+@b{Twofish}. The Twofish cipher was designed by Bruce Schneier,
+John Kelsey, Doug Whiting, David Wagner, Chris Hall, and Niels Ferguson
+as a proposed cipher for the Advanced Encryption Standard. Twofish has a
+128 bit block size, and a key size of 128, 192, or 256 bits.
+
+@end itemize
+
+@node The IBlockCipher Interface, The CipherFactory Class, Ciphers, Ciphers
+@section The IBlockCipher Interface
+
+@fgindex Ciphers class diagram
+@iftex
+  @image{diagrams/cipher_class_diag, 365pt, 212pt}
+  @nobreak
+  @center @i{Figure 1: Ciphers class diagram}
+@end iftex
+@ifnottex
+  @image{diagrams/cipher_class_diag}
+  @center @i{Figure 1: Ciphers class diagram}
+@end ifnottex
+
+@cindex @code{IBlockCipher} interface
+
+All ciphers in GNU Crypto implement the @code{IBlockCipher} interface,
+and support all the methods listed in this section.
+
+@cindex @b{CIPHER_BLOCK_SIZE} variable (@code{IBlockCipher})
+
+@deftypevar java.lang.String CIPHER_BLOCK_SIZE
+A property name in the attributes map that is passed to the @code{init}
+method, representing the cipher's desired block size. The mapped value
+should be a @code{java.lang.Integer} of the cipher's block size, in
+bytes. If this attribute is omitted, the cipher's default block size is used.
+@end deftypevar
+
+@cindex @b{KEY_MATERIAL} variable (@code{IBlockCipher})
+
+@deftypevar java.lang.String KEY_MATERIAL
+A property name in the attributes map that is passed to the @code{init}
+method, representing the bytes that are to compose the cipher's key. The
+mapped value must be a byte array, and its length must be one of the
+cipher's supported key sizes.
+@end deftypevar
+
+@cindex @b{init} function (@code{IBlockCipher})
+
+@deftypefun void init (java.util.Map @var{attributes}) throws java.security.InvalidKeyException, java.lang.IllegalStateException
+Initializes the cipher for transforming data. The @var{attributes}
+parameter must be a @code{java.util.Map} that has, at least, a mapping
+between the @code{KEY_MATERIAL} property name to a byte array containing
+the key. Ciphers @emph{may} define other property names. If the supplied
+byte array is not an acceptable key, this method throws a
+@code{java.security.InvalidKeyException}. If this instance has already
+been initialized, this method throws a
+@code{java.lang.IllegalStateException}.
+@end deftypefun
+
+@cindex @b{name} function (@code{IBlockCipher})
+
+@deftypefun java.lang.String name ( )
+Returns the cipher's canonical name.
+@end deftypefun
+
+@cindex @b{defaultBlockSize} function (@code{IBlockCipher})
+
+@deftypefun int defaultBlockSize ( )
+Returns the default block size, in bytes.
+@end deftypefun
+
+@cindex @b{defaultKeySize} function (@code{IBlockCipher})
+
+@deftypefun int defaultKeySize ( )
+Returns the default key size, in bytes.
+@end deftypefun
+
+@cindex @b{blockSizes} function (@code{IBlockCipher})
+
+@deftypefun java.util.Iterator blockSizes ( )
+Returns a @code{java.util.Iterator} of the cipher's supported block
+sizes. Each element of the iterator is a @code{java.lang.Integer}.
+@end deftypefun
+
+@cindex @b{keySizes} function (@code{IBlockCipher})
+
+@deftypefun java.util.Iterator keySizes ( )
+Returns a @code{java.util.Iterator} of the cipher's supported key sizes.
+Each element of the iterator is a @code{java.lang.Integer}.
+@end deftypefun
+
+@cindex @b{clone} function (@code{IBlockCipher})
+
+@deftypefun java.lang.Object clone ( )
+Returns a clone of this cipher. The cloned instance must be initialized,
+as this method will not clone the cipher's internal key.
+@end deftypefun
+
+@cindex @b{currentBlockSize} function (@code{IBlockCipher})
+
+@deftypefun int currentBlockSize ( ) throws java.lang.IllegalStateException
+Returns the cipher's current block size, in bytes, or will throw a
+@code{java.lang.IllegalStateException} if this instance has not been
+initialized.
+@end deftypefun
+
+@cindex @b{reset} function (@code{IBlockCipher})
+
+@deftypefun void reset ( )
+Resets this instance, which may then be re-initialized.
+@end deftypefun
+
+@cindex @b{encryptBlock} function (@code{IBlockCipher})
+
+@deftypefun void encryptBlock (byte[] @var{plaintext}, int @var{inOffset}, byte[] @var{ciphertext}, int @var{outOffset}) throws java.lang.IllegalStateException
+Encrypts a block of bytes from @var{plaintext} starting at
+@var{inOffset}, storing the encrypted bytes in @var{ciphertext},
+starting at @var{outOffset}. It is up to the programmer to ensure that
+there is at least one full block in @var{plaintext} from @var{inOffset}
+and space for one full block in @var{ciphertext} from @var{outOffset}. A
+@code{java.lang.IllegalStateException} will be thrown if the cipher has
+not been initialized.
+@end deftypefun
+
+@cindex @b{decryptBlock} function (@code{IBlockCipher})
+
+@deftypefun void decryptBlock (byte[] @var{ciphertext}, int @var{inOffset}, byte[] @var{plaintext}, int @var{outOffset}) throws java.lang.IllegalStateException
+Decrypts a block of bytes from @var{ciphertext} starting at
+@var{inOffset}, storing the encrypted bytes in @var{plaintext},
+starting at @var{outOffset}. It is up to the programmer to ensure that
+there is at least one full block in @var{ciphertext} from @var{inOffset}
+and space for one full block in @var{plaintext} from @var{outOffset}. A
+@code{java.lang.IllegalStateException} will be thrown if the cipher has
+not been initialized.
+@end deftypefun
+
+@cindex @b{selfTest} function (@code{IBlockCipher})
+
+@deftypefun boolean selfTest ( )
+Performs a simple test of conformance, to ensure that there are no
+implementation or system errors. This method returns @code{true} if the
+test succeeds; @code{false} otherwise.
+@end deftypefun
+
+@node The CipherFactory Class, Cipher Example, The IBlockCipher Interface, Ciphers
+@section The CipherFactory Class
+
+The ciphers in GNU Crypto can usually be initiallized directly through
+their constructors, but the preferred way is to use the
+@code{CipherFactory} class, with the following method:
+
+@cindex @b{getInstance} function (@code{CipherFactory})
+
+@deftypefun {static IBlockCipher} getInstance (java.lang.String @var{name})
+Returns a new cipher instance for the cipher named @var{name}, or
+@code{null} if no such cipher exists. This method will throw a
+@code{java.lang.InternalError} if the new instance's self-test fails.
+@end deftypefun
+
+The class also defines this method:
+
+@cindex @b{getNames} function (@code{CipherFactory})
+
+@deftypefun {static java.util.Set} getNames ( )
+This method returns a @code{java.util.Set} of the names (each element of
+type @code{java.lang.String}) of all supported ciphers.
+@end deftypefun
+
+@node Cipher Example, , The CipherFactory Class, Ciphers
+@section Example
+
+@cindex example, cipher
+
+The following example transforms the plaintext to the ciphertext, and
+the ciphertext back to the plaintext, using the AES in electronic
+codebook mode with no padding. Note also the classes for cipher modes
+and padding schemes for more complex constructions.
+
+@sp 1
+
+@example
+IBlockCipher cipher = CipherFactory.getInstance("AES");
+Map attributes = new HashMap();
+attributes.put(IBlockCipher.CIPHER_BLOCK_SIZE, new Integer(16));
+attributes.put(IBlockCipher.KEY_MATERIAL, key_bytes);
+cipher.init(attributes);
+int bs = cipher.currentBlockSize();
+
+for (int i = 0; i + bs < pt.length; i += bs)
+   @{
+      cipher.encryptBlock(pt, i, ct, i);
+   @}
+
+for (int i = 0; i + bs < cpt.length; i += bs)
+   @{
+      cipher.decryptBlock(ct, i, cpt, i);
+   @}
+@end example

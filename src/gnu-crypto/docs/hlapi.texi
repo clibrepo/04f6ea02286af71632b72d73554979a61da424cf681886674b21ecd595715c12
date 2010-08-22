@@ -1,0 +1,34 @@
+@node Cascades and Assemblies, Message Digests, Padding, Top
+@chapter Cascades and Assemblies
+@cindex @code{gnu.crypto.assembly} package
+
+@menu
+* Cascades::                       The Cascade pattern and classes.
+* Assemblies::                     The Assembly pattern and classes.
+@end menu
+
+This chapter describes two patterns implemneted by the GNU Crypto library
+that allow users to combine the basic cipher (and other) primitives into
+higher level components in order to offer more flexible functionalities.
+These two patterns are: Cascade and Assembly.
+
+The @b{Cascade} is a means of assembling block cipher Modes of Operations
+into an ordered sequence of @i{stages}. A @i{stage} is a representation
+of a Mode (of Operations) wired in a designated @i{direction}: FORWARD
+or REVERSED. A Mode staged in the FORWARD direction would encrypt input
+blocks, producing ciphertext, while the same Mode, wired in the REVERSED
+direction would do the opposite; i.e. decrypt an input text producing a
+plaintext.
+
+In the simplest case, all stages in a Cascade have @i{k}-bit keys, and
+the stage inputs and outputs are all @i{n}-bit quantities. The stage
+ciphers may differ (general cascade of ciphers), or all be identical
+(cascade of identical ciphers).
+
+An @b{Assembly} is a construction of an ordered set of @b{Transformer}
+objects. Each @b{Transformer} is wired to operate in PRE_PROCESSING or
+POST_PROCESSING mode --the Transformer's @b{Operation}. In PRE_PROCESSING,
+the input is first processed by the Transformer before being passed to
+the rest of the chain, while in POST_PROCESSING state, the Transformer
+first passes the input to the rest of the chain and only processes the
+output of the returned data.

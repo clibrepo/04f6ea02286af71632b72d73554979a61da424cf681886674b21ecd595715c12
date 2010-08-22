@@ -1,0 +1,11 @@
+# Mauve tags for GNU Crypto
+#
+# $Revision: 1.1 $
+# -----------------------------------------------------------------------------
+#
+
+GNU-CRYPTO
+
+!gnu.crypto.cipher.BaseCipherTestCase
+@INCLUDE_FOR_MAUVE_JCE@gnu.crypto.jce.TestOfCipher
+@INCLUDE_FOR_MAUVE_JCE@gnu.crypto.jce.TestOfMac
